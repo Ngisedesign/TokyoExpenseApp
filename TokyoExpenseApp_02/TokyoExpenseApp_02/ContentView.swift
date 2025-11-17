@@ -196,17 +196,12 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading) {
             HStack {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.black)
+                LargeIconButton(icon: "line.3.horizontal", size: 48) {
+                    // Menu action - to be implemented
+                }
                 Spacer()
-                Button {
+                LargeIconButton(icon: "plus", size: 48) {
                     isPresentingAdd = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundStyle(.black)
-                        .accessibilityLabel("Add expense")
                 }
             }
             .padding(.bottom, 0)
@@ -256,8 +251,9 @@ struct ContentView: View {
             Spacer()
             HStack {
                 Spacer()
-                Image(systemName: "camera")
-                    .font(.system(size: 48, weight: .bold))
+                LargeIconButton(icon: "camera", size: 48) {
+                    // Camera action - to be implemented
+                }
                 Spacer()
             }
             .padding(.bottom, 16)

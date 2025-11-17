@@ -23,21 +23,16 @@ struct AddEntryView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with dismiss and save
             HStack {
-                Button {
+                LargeIconButton(icon: "xmark") {
                     dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(.black)
                 }
                 Spacer()
-                Button {
+                LargeIconButton(
+                    icon: "checkmark",
+                    color: canSave ? .black : .secondary
+                ) {
                     // Save expense
                     dismiss()
-                } label: {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(canSave ? .black : .secondary)
                 }
                 .disabled(!canSave)
             }
@@ -66,31 +61,11 @@ struct AddEntryView: View {
                                     showLibraryPicker = true
                                 }
                         } else {
-                            // Photo library placeholder - big and bold
-                            Button {
+                            ImagePlaceholder(
+                                icon: "photo.fill",
+                                text: "Add from library"
+                            ) {
                                 showLibraryPicker = true
-                            } label: {
-                                VStack(spacing: 16) {
-                                    Image(systemName: "photo.fill")
-                                        .font(.system(size: 64, weight: .bold))
-                                        .foregroundStyle(.black.opacity(0.30))
-
-                                    Text("Add from library")
-                                        .font(.title3)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 280)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(.black.opacity(0.02))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
-                                        .foregroundStyle(.black.opacity(0.1))
-                                )
                             }
                         }
 
@@ -111,37 +86,21 @@ struct AddEntryView: View {
                     }
 
                     // Category Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Category")
-                            .font(.headline)
-                            .foregroundStyle(.black)
-
+                    LabeledField(label: "Category", spacing: 12) {
                         HStack(spacing: 12) {
                             ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                                Button {
+                                CategoryPill(
+                                    text: cat.rawValue,
+                                    isSelected: category == cat
+                                ) {
                                     category = cat
-                                } label: {
-                                    Text(cat.rawValue)
-                                        .font(.callout)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(category == cat ? .white : .black)
-                                        .padding(.vertical, 10)
-                                        .padding(.horizontal, 16)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .fill(category == cat ? .black : .black.opacity(0.05))
-                                        )
                                 }
                             }
                         }
                     }
 
                     // Merchant Name
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Merchant")
-                            .font(.headline)
-                            .foregroundStyle(.black)
-
+                    LabeledField(label: "Merchant") {
                         TextField("Where did you spend?", text: $merchant)
                             .font(.title2)
                             .fontWeight(.medium)
@@ -153,39 +112,33 @@ struct AddEntryView: View {
                     }
 
                     // Amount in Yen
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Amount")
-                            .font(.headline)
-                            .foregroundStyle(.black)
+                    LabeledField(label: "Amount") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Text("¥")
+                                    .font(.system(size: 32, weight: .bold))
+                                    .foregroundStyle(.black)
 
-                        HStack(spacing: 8) {
-                            Text("¥")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundStyle(.black)
+                                TextField("0", text: $amountYen)
+                                    .font(.system(size: 32, weight: .bold))
+                                    .keyboardType(.numberPad)
+                                    .foregroundStyle(.black)
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(.black.opacity(0.03))
+                            )
 
-                            TextField("0", text: $amountYen)
-                                .font(.system(size: 32, weight: .bold))
-                                .keyboardType(.numberPad)
-                                .foregroundStyle(.black)
+                            Text("Exchange rate: ¥150 = $1 USD")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
                         }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(.black.opacity(0.03))
-                        )
-
-                        Text("Exchange rate: ¥150 = $1 USD")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
                     }
 
                     // Date
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Date")
-                            .font(.headline)
-                            .foregroundStyle(.black)
-
+                    LabeledField(label: "Date") {
                         DatePicker("", selection: $date, displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .labelsHidden()
