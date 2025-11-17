@@ -10,12 +10,12 @@ struct AddEntryView: View {
     @State private var selectedItem: PhotosPickerItem? = nil
     @State private var selectedImageUI: UIImage? = nil
     @State private var showCamera: Bool = false
+    @State private var showLibraryPicker: Bool = false
     @State private var category: ExpenseCategory = .food
 
     enum ExpenseCategory: String, CaseIterable {
         case food = "Food"
         case transport = "Transport"
-        case shopping = "Shopping"
         case other = "Other"
     }
 
@@ -47,50 +47,67 @@ struct AddEntryView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Receipt Image / Camera Section
-                    if let image = selectedImageUI {
-                        // Show captured image
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 280)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(.black.opacity(0.1), lineWidth: 1)
-                            )
-                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                            .onTapGesture {
-                                showCamera = true
+                    // Receipt Image / Library Section
+                    ZStack(alignment: .bottomTrailing) {
+                        if let image = selectedImageUI {
+                            // Show captured image
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 280)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .strokeBorder(.black.opacity(0.1), lineWidth: 1)
+                                )
+                                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                                .onTapGesture {
+                                    showLibraryPicker = true
+                                }
+                        } else {
+                            // Photo library placeholder - big and bold
+                            Button {
+                                showLibraryPicker = true
+                            } label: {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "photo.fill")
+                                        .font(.system(size: 64, weight: .bold))
+                                        .foregroundStyle(.black.opacity(0.30))
+
+                                    Text("Add from library")
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 280)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(.black.opacity(0.02))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
+                                        .foregroundStyle(.black.opacity(0.1))
+                                )
                             }
-                    } else {
-                        // Camera placeholder - big and bold
+                        }
+
+                        // Camera button in bottom right corner
                         Button {
                             showCamera = true
                         } label: {
-                            VStack(spacing: 16) {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 64, weight: .bold))
-                                    .foregroundStyle(.black.opacity(0.15))
-
-                                Text("Tap to scan receipt")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 280)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(.black.opacity(0.02))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
-                                    .foregroundStyle(.black.opacity(0.1))
-                            )
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundStyle(.black.opacity(0.3))
+                                .padding(16)
+                                .background(
+                                    Circle()
+                                        .strokeBorder(.black.opacity(0.3), lineWidth: 2)
+                                )
                         }
+                        .padding(16)
                     }
 
                     // Category Selection
@@ -183,7 +200,7 @@ struct AddEntryView: View {
         .sheet(isPresented: $showCamera) {
             CameraPickerView(selectedImage: $selectedImageUI)
         }
-        .photosPicker(isPresented: .constant(false), selection: $selectedItem, matching: .images)
+        .photosPicker(isPresented: $showLibraryPicker, selection: $selectedItem, matching: .images)
         .onChange(of: selectedItem) { newItem in
             Task {
                 await loadImage(from: newItem)
