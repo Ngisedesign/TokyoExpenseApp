@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 // Extension to hide views conditionally
 extension View {
@@ -192,6 +193,9 @@ struct FlippingCoinView: View {
 
 struct ContentView: View {
     @State private var isPresentingAdd: Bool = false
+    @State private var showQuickCamera: Bool = false
+    @State private var capturedImage: UIImage? = nil
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -252,7 +256,7 @@ struct ContentView: View {
             HStack {
                 Spacer()
                 LargeIconButton(icon: "camera", size: 48) {
-                    // Camera action - to be implemented
+                    showQuickCamera = true
                 }
                 Spacer()
             }
@@ -262,6 +266,64 @@ struct ContentView: View {
         .padding()
         .sheet(isPresented: $isPresentingAdd) {
             AddEntryView()
+        }
+        .sheet(isPresented: $showQuickCamera) {
+            QuickCameraView(capturedImage: $capturedImage)
+        }
+        .onChange(of: capturedImage) { newImage in
+            if let image = newImage {
+                Task {
+                    await processQuickCapture(image)
+                }
+            }
+        }
+    }
+
+    private func processQuickCapture(_ image: UIImage) async {
+        // Run OCR
+        let ocrResult = await OCRService.shared.recognizeText(in: image)
+
+        // Parse receipt
+        var parsedReceipt: ParsedReceipt?
+        if #available(iOS 26.0, *) {
+            parsedReceipt = try? await HybridParser.shared.parseReceipt(
+                from: ocrResult.textElements,
+                confidence: ocrResult.confidence
+            )
+        }
+
+        // Fallback to spatial if needed
+        if parsedReceipt == nil {
+            parsedReceipt = SpatialReceiptParser.shared.parseReceipt(
+                from: ocrResult.textElements,
+                confidence: ocrResult.confidence
+            )
+        }
+
+        // Save image
+        guard let imagePath = ImageManager.shared.saveImage(image) else { return }
+
+        // Create expense
+        let amountJPY = parsedReceipt?.totalAmountYen ?? Decimal(0)
+        let exchangeRate: Decimal = 150
+        let expense = Expense(
+            date: parsedReceipt?.date ?? Date(),
+            category: parsedReceipt?.category ?? "Other",
+            merchantName: parsedReceipt?.merchantName ?? "Quick Capture",
+            expenseDescription: "",
+            amountJPY: amountJPY,
+            amountUSD: amountJPY / exchangeRate,
+            exchangeRate: exchangeRate,
+            receiptImagePaths: [imagePath],
+            isWorkDay: false,
+            isManualEntry: false,
+            ocrConfidence: parsedReceipt?.confidence
+        )
+
+        await MainActor.run {
+            modelContext.insert(expense)
+            try? modelContext.save()
+            capturedImage = nil // Reset
         }
     }
 }
