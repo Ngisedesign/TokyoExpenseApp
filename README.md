@@ -2,9 +2,24 @@
 
 A SwiftUI iOS app for tracking expenses during your Tokyo trip with receipt photo capture and CSV export.
 
-**Status:** Redesigning from scratch, harvesting proven functionality from v1.
+**Status:** UI redesign complete (Phase 1 & 2). Ready for backend integration (Phase 3).
 
-**Next Step:** Visual design of core screens in Xcode, followed by componentization and functionality migration.
+**Current Phase:** Backend Migration - Integrating V1's proven receipt parsing into V2's new UI.
+
+**Next Step:** Follow the detailed migration plan in [MIGRATION_PLAN.md](MIGRATION_PLAN.md) to integrate OCR, parsers, and data models.
+
+---
+
+## 📚 Documentation
+
+- **[MIGRATION_PLAN.md](MIGRATION_PLAN.md)** - Step-by-step backend integration plan (START HERE for next session)
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - V1 technical architecture and V2 simplification strategy
+- **[README.md](README.md)** - This file (project overview and status)
+
+**V1 Project Reference:**
+- Location: `/Users/claudiang/Projects/TokyoExpenseTracking/`
+- See V1's ARCHITECTURE.md for proven parser implementations
+- See V1's README.md for complete feature list
 
 ---
 
