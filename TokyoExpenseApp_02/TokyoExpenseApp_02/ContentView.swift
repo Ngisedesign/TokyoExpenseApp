@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+// Extension to hide views conditionally
+extension View {
+    @ViewBuilder
+    func hidden(_ shouldHide: Bool) -> some View {
+        if shouldHide {
+            self.opacity(0)
+        } else {
+            self
+        }
+    }
+}
+
 struct MaskedTextImage: View {
     let text: String
     let imageName: String
@@ -35,7 +47,6 @@ struct MaskedTextImage: View {
 }
 
 struct FlippingCoinView: View {
-    @State private var flipped = false
     @State private var angle: Double = 0
 
     let size: CGFloat
@@ -44,53 +55,120 @@ struct FlippingCoinView: View {
         self.size = size
     }
 
+    private var isFrontVisible: Bool {
+        let normalized = (angle.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+        return normalized < 90 || normalized > 270
+    }
+
+    private var edgeFade: Double {
+        let norm = (angle.truncatingRemainder(dividingBy: 180) + 180).truncatingRemainder(dividingBy: 180)
+        let distance = abs(norm - 90)
+        let t = min(max(distance / 90, 0), 1)
+        return 0.2 + 0.8 * t
+    }
+
+    // Helper view for coin base with gradients
+    private var coinBaseCircle: some View {
+        Circle()
+            .fill(.ultraThinMaterial)
+            .overlay(coinGradientOverlay)
+            .overlay(coinStrokeBorder)
+            .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+            .overlay(coinAngularGradient)
+    }
+
+    private var coinGradientOverlay: some View {
+        Circle()
+            .fill(
+                LinearGradient(colors: [
+                    Color.white.opacity(0.22),
+                    Color.white.opacity(0.10),
+                    Color.white.opacity(0.06)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            .blendMode(.overlay)
+    }
+
+    private var coinStrokeBorder: some View {
+        Circle()
+            .strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
+            .blur(radius: 0.5)
+            .opacity(0.9)
+    }
+
+    private var coinAngularGradient: some View {
+        Group {
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.55),
+                            Color.white.opacity(0.05),
+                            Color.white.opacity(0.0),
+                            Color.white.opacity(0.25)
+                        ]),
+                        center: .center
+                    ),
+                    lineWidth: 1.0
+                )
+                .blendMode(.screen)
+        }
+        .opacity(edgeFade)
+    }
+
+    // Helper for currency symbol with shadow
+    private func currencySymbol(name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: size * 0.45, weight: .bold))
+            .foregroundStyle(.white.opacity(0.95))
+            .overlay(currencySymbolShadow(name: name))
+    }
+
+    private func currencySymbolShadow(name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: size * 0.45, weight: .bold))
+            .foregroundStyle(Color.black.opacity(0.45))
+            .blur(radius: 1.5)
+            .offset(x: 0, y: 1)
+            .mask(
+                Image(systemName: name)
+                    .font(.system(size: size * 0.45, weight: .bold))
+            )
+            .opacity(0.6)
+    }
+
+    private var coinFaceOverlay: some View {
+        Group {
+            Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1.5)
+            Circle()
+                .stroke(.white.opacity(0.5), lineWidth: 2)
+                .blur(radius: 2)
+                .opacity(0.6)
+                .blendMode(.softLight)
+        }
+    }
+
     var body: some View {
         ZStack {
             // Front face: Yen
             ZStack {
-                Circle().fill(
-                    LinearGradient(colors: [.yellow.opacity(0.95), .orange.opacity(0.9)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-                Image(systemName: "yensign")
-                    .font(.system(size: size * 0.45, weight: .bold))
-                    .foregroundStyle(.black.opacity(0.85))
+                coinBaseCircle
+                currencySymbol(name: "yensign")
             }
             .frame(width: size, height: size)
-            .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1.5))
-            .overlay(
-                Circle()
-                    .stroke(.white.opacity(0.5), lineWidth: 2)
-                    .blur(radius: 2)
-                    .opacity(0.6)
-                    .blendMode(.softLight)
-            )
-            .opacity(flipped ? 0 : 1)
+            .overlay(coinFaceOverlay)
+            .hidden(!isFrontVisible)
             .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0))
-            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 4)
 
             // Back face: Dollar
             ZStack {
-                Circle().fill(
-                    LinearGradient(colors: [.orange.opacity(0.95), .yellow.opacity(0.9)],
-                                   startPoint: .bottomTrailing, endPoint: .topLeading)
-                )
-                Image(systemName: "dollarsign")
-                    .font(.system(size: size * 0.45, weight: .bold))
-                    .foregroundStyle(.black.opacity(0.85))
+                coinBaseCircle
+                currencySymbol(name: "dollarsign")
             }
             .frame(width: size, height: size)
-            .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1.5))
-            .overlay(
-                Circle()
-                    .stroke(.white.opacity(0.5), lineWidth: 2)
-                    .blur(radius: 2)
-                    .opacity(0.6)
-                    .blendMode(.softLight)
-            )
-            .opacity(flipped ? 1 : 0)
+            .overlay(coinFaceOverlay)
+            .hidden(isFrontVisible)
             .rotation3DEffect(.degrees(angle + 180), axis: (x: 0, y: 1, z: 0))
-            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 4)
         }
         .background(
             RoundedRectangle(cornerRadius: size * 0.55, style: .continuous)
@@ -106,15 +184,15 @@ struct FlippingCoinView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.15)) {
-                flipped.toggle()
                 angle += 180
             }
         }
-        .sensoryFeedback(.selection, trigger: flipped)
     }
 }
 
 struct ContentView: View {
+    @State private var isPresentingAdd: Bool = false
+
     var body: some View {
         VStack(alignment: .leading) {
             HStack {
@@ -122,9 +200,14 @@ struct ContentView: View {
                     .font(.system(size: 48, weight: .bold))
                     .foregroundStyle(.black)
                 Spacer()
-                Image(systemName: "plus")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.black)
+                Button {
+                    isPresentingAdd = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundStyle(.black)
+                        .accessibilityLabel("Add expense")
+                }
             }
             .padding(.bottom, 0)
             VStack(alignment: .leading, spacing: 12) {
@@ -181,6 +264,9 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
+        .sheet(isPresented: $isPresentingAdd) {
+            AddEntryView()
+        }
     }
 }
 
