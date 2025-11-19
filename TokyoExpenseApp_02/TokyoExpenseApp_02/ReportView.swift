@@ -4,17 +4,22 @@ import SwiftData
 struct ReportView: View {
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
     @AppStorage("showYen") private var showYen = true
+    @AppStorage("includeTravelDays") private var includeTravelDays = false
     @State private var showExportSheet = false
 
+    private var filteredExpenses: [Expense] {
+        includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
+    }
+
     private var groupedExpenses: [String: [Expense]] {
-        Dictionary(grouping: expenses) { $0.category }
+        Dictionary(grouping: filteredExpenses) { $0.category }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Subtitle and export button
             HStack {
-                Text("Dec 1-5")
+                Text(includeTravelDays ? "Nov 28-Dec 7" : "Dec 1-5")
                     .font(.system(size: 28, weight: .medium))
                     .foregroundStyle(.secondary.opacity(0.6))
                 Spacer()
@@ -121,7 +126,7 @@ struct ReportView: View {
     // MARK: - Grand Total Section
 
     private var grandTotalSection: some View {
-        let grandTotal = expenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
+        let grandTotal = filteredExpenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
         let remaining = BudgetTracker.totalBudget - (grandTotal / 150)
 
         return VStack(alignment: .leading, spacing: 20) {

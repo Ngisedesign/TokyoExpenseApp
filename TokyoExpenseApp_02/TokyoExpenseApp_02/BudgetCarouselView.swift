@@ -120,55 +120,95 @@ struct BudgetContentView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-                .padding(.bottom, 32)
+                .padding(.bottom, 16)
 
                 // Total Budget Overview
                 totalBudgetSection
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 20)
 
                 // Budget Categories
                 ForEach(BudgetTracker.BudgetCategory.allCases, id: \.self) { category in
                     budgetCategorySection(category)
                         .padding(.horizontal)
-                        .padding(.bottom, 40)
+                        .padding(.bottom, 20)
                 }
 
-                Spacer(minLength: 40)
+                Spacer(minLength: 20)
             }
-            .padding(.vertical)
+            .padding(.top, 8)
+            .padding(.bottom)
         }
     }
 
     // MARK: - Total Budget Section
 
     private var totalBudgetSection: some View {
-        let spent = BudgetTracker.totalSpent(from: expenses, includeTravelDays: includeTravelDays)
-        let remaining = BudgetTracker.remainingBudget(from: expenses, includeTravelDays: includeTravelDays)
+        let foodSpent = BudgetTracker.spentByCategory(.perDiem, from: expenses, includeTravelDays: includeTravelDays)
+        let transportSpent = BudgetTracker.spentByCategory(.transport, from: expenses, includeTravelDays: includeTravelDays)
+        let total = BudgetTracker.totalBudget
+        let remaining = max(0, total - foodSpent - transportSpent)
 
-        return VStack(alignment: .leading, spacing: 16) {
-            Text("Total")
-                .font(.system(size: 56, weight: .black))
-                .foregroundStyle(.primary)
+        return GeometryReader { geo in
+            let width = geo.size.width
+            let height: CGFloat = 44
 
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(formatAmount(spent))
-                    .font(.title)
-                Text("of")
-                    .font(.title)
-                    .foregroundStyle(.secondary.opacity(0.5))
-                Text(formatAmount(BudgetTracker.totalBudget))
-                    .font(.title)
+            let foodProgress = Double(truncating: ((foodSpent / total) as NSNumber))
+            let transportProgress = Double(truncating: ((transportSpent / total) as NSNumber))
+
+            let clampedFood = max(0.0, min(foodProgress, 1.0))
+            let remainingCapacity = max(0.0, 1.0 - clampedFood)
+            let clampedTransport = max(0.0, min(transportProgress, remainingCapacity))
+
+            let foodWidth = width * CGFloat(clampedFood)
+            let transportWidth = width * CGFloat(clampedTransport)
+
+            let foodCenterX = max(14, min(foodWidth / 2, width - 14))
+            let transportCenterX = max(14, min(foodWidth + transportWidth / 2, width - 14))
+
+            ZStack(alignment: .leading) {
+                // Background bar
+                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                    .fill(.primary.opacity(0.08))
+
+                // Food fill
+                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                    .fill(BudgetTracker.BudgetCategory.perDiem.color)
+                    .frame(width: foodWidth)
+
+                // Transport fill
+                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                    .fill(BudgetTracker.BudgetCategory.transport.color)
+                    .frame(width: transportWidth)
+                    .offset(x: foodWidth)
+
+                // Icons over segments (hide if too small)
+                if foodWidth > 24 {
+                    Image(systemName: BudgetTracker.BudgetCategory.perDiem.icon)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .position(x: foodCenterX, y: height / 2)
+                }
+                if transportWidth > 24 {
+                    Image(systemName: BudgetTracker.BudgetCategory.transport.icon)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .position(x: transportCenterX, y: height / 2)
+                }
             }
-
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text(formatAmount(remaining))
+            .overlay(alignment: .trailing) {
+                Text(formatAmountNoDecimals(remaining))
                     .font(.title2)
-                    .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
-                Text(" remaining")
-                    .font(.title2)
-                    .foregroundStyle(.secondary.opacity(0.6))
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    )
+                    .padding(.trailing, 4)
             }
         }
+        .frame(height: 44)
         .padding(.horizontal)
     }
 
@@ -181,7 +221,7 @@ struct BudgetContentView: View {
         let isExpanded = expandedCategories.contains(category)
         let canExpand = (category == .perDiem || category == .transport) && !includeTravelDays
 
-        return VStack(alignment: .leading, spacing: 16) {
+        return VStack(alignment: .leading, spacing: 8) {
             // Category title
             HStack {
                 Text(displayName(for: category))
@@ -218,12 +258,14 @@ struct BudgetContentView: View {
                     .foregroundStyle(.secondary.opacity(0.5))
                 Text(formatAmount(budget))
                     .font(.title2)
-            }
 
-            // Remaining
-            Text(formatAmount(remaining))
-                .font(.title)
-                .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                // Show overspent amount in red only if over budget
+                if remaining < 0 {
+                    Text(formatAmount(abs(remaining)))
+                        .font(.title2)
+                        .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                }
+            }
 
             // Daily breakdown (expanded)
             if isExpanded {
@@ -279,12 +321,13 @@ struct BudgetContentView: View {
                     .foregroundStyle(.secondary.opacity(0.5))
                 Text(formatAmount(dailyBudget))
                     .font(.title3)
-            }
 
-            if remaining != 0 {
-                Text(formatAmount(remaining))
-                    .font(.body)
-                    .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                // Show overspent amount in red only if over budget
+                if remaining < 0 {
+                    Text(formatAmount(abs(remaining)))
+                        .font(.title3)
+                        .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                }
             }
         }
         .padding(.vertical, 8)
@@ -316,6 +359,23 @@ struct BudgetContentView: View {
             return formatter.string(from: amount as NSNumber) ?? "$0.00"
         }
     }
+    
+    private func formatAmountNoDecimals(_ amount: Decimal) -> String {
+        if showYen {
+            let yenAmount = amount * 150
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.maximumFractionDigits = 0
+            return "¥" + (formatter.string(from: yenAmount as NSNumber) ?? "0")
+        } else {
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .currency
+            formatter.currencyCode = "USD"
+            formatter.maximumFractionDigits = 0
+            formatter.minimumFractionDigits = 0
+            return formatter.string(from: amount as NSNumber) ?? "$0"
+        }
+    }
 
     private func dayOfWeek(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -334,4 +394,3 @@ struct BudgetContentView: View {
     BudgetCarouselView()
         .modelContainer(for: Expense.self)
 }
-
