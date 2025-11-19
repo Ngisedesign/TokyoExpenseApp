@@ -54,7 +54,7 @@ struct MaskedTextImage: View {
 }
 
 struct FlippingCoinView: View {
-    @State private var angle: Double = 0
+    @State private var angle: Double
     @Binding var showYen: Bool
 
     let size: CGFloat
@@ -62,6 +62,8 @@ struct FlippingCoinView: View {
     init(size: CGFloat = 90, showYen: Binding<Bool>) {
         self.size = size
         self._showYen = showYen
+        // Initialize angle based on showYen value
+        self._angle = State(initialValue: showYen.wrappedValue ? 0.0 : 180.0)
     }
 
     private var isFrontVisible: Bool {
@@ -198,6 +200,19 @@ struct FlippingCoinView: View {
                 angle += 180
             }
         }
+        .onChange(of: showYen) { oldValue, newValue in
+            // Sync angle when showYen changes from outside
+            let targetAngle: Double = newValue ? 0.0 : 180.0
+            let currentNormalized = (angle.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+
+            // Only animate if we're not already at the target
+            if (newValue && !(currentNormalized < 90 || currentNormalized > 270)) ||
+               (!newValue && (currentNormalized < 90 || currentNormalized > 270)) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.15)) {
+                    angle = targetAngle
+                }
+            }
+        }
     }
 }
 
@@ -206,7 +221,7 @@ struct ContentView: View {
     @State private var showQuickCamera: Bool = false
     @State private var capturedImage: UIImage? = nil
     @State private var showBudgetView: Bool = false
-    @State private var showYen: Bool = true
+    @AppStorage("showYen") private var showYen: Bool = true
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
 
@@ -408,3 +423,4 @@ struct ContentView: View {
 #Preview {
     ContentView()
 }
+

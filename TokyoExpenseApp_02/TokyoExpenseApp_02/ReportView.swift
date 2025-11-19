@@ -3,7 +3,7 @@ import SwiftData
 
 struct ReportView: View {
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
-    @AppStorage("showYen") private var showYen = false
+    @AppStorage("showYen") private var showYen = true
     @State private var showExportSheet = false
 
     private var groupedExpenses: [String: [Expense]] {
@@ -14,55 +14,29 @@ struct ReportView: View {
         VStack(spacing: 0) {
             // Subtitle and export button
             HStack {
-                Text("Tokyo Trip • Dec 1-5, 2025")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text("Dec 1-5")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(.secondary.opacity(0.6))
                 Spacer()
+
                 Button {
                     showExportSheet = true
                 } label: {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
+                        .font(.title3)
+                        .foregroundStyle(.primary)
                 }
             }
-            .padding()
-
-            // Currency Toggle
-            Toggle(isOn: $showYen) {
-                HStack {
-                    Image(systemName: "yensign.circle")
-                        .foregroundStyle(.secondary)
-                    Text("Show in Yen (¥)")
-                        .font(.subheadline)
-                }
-            }
-            .tint(.blue)
             .padding(.horizontal)
-            .padding(.bottom)
-            .background(.white)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
 
             Divider()
-
-            // Table Header
-            HStack(spacing: 8) {
-                Text("Date")
-                    .frame(width: 70, alignment: .leading)
-                Text("Merchant")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text("Amount")
-                    .frame(width: 80, alignment: .trailing)
-            }
-            .font(.caption)
-            .fontWeight(.semibold)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.black.opacity(0.05))
+                .padding(.horizontal)
 
             // Expense List
             ScrollView {
-                VStack(spacing: 0) {
+                VStack(spacing: 40) {
                     ForEach(ExpenseCategory.allCases, id: \.self) { category in
                         if let categoryExpenses = groupedExpenses[category.rawValue], !categoryExpenses.isEmpty {
                             categorySection(category: category, expenses: categoryExpenses)
@@ -72,6 +46,7 @@ struct ReportView: View {
                     // Grand Total
                     grandTotalSection
                 }
+                .padding(.vertical, 24)
             }
         }
         .sheet(isPresented: $showExportSheet) {
@@ -84,95 +59,62 @@ struct ReportView: View {
     private func categorySection(category: ExpenseCategory, expenses: [Expense]) -> some View {
         let categoryTotal = expenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
 
-        return VStack(spacing: 0) {
+        return VStack(alignment: .leading, spacing: 16) {
             // Category Header
             HStack {
-                Image(systemName: categoryIcon(category))
-                    .foregroundStyle(categoryColor(category))
                 Text(category.rawValue)
-                    .font(.headline)
+                    .font(.system(size: 36, weight: .black))
+                    .foregroundStyle(.primary)
                 Spacer()
-                Text(formatAmount(categoryTotal / 150)) // Convert to USD
-                    .font(.headline)
-                    .foregroundStyle(categoryColor(category))
+                Text(formatAmount(categoryTotal / 150))
+                    .font(.title2)
+                    .fontWeight(.semibold)
             }
             .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(categoryColor(category).opacity(0.1))
 
             // Expense Rows
-            ForEach(expenses) { expense in
-                expenseRow(expense)
-                Divider()
-                    .padding(.leading)
+            VStack(spacing: 0) {
+                ForEach(expenses) { expense in
+                    expenseRow(expense)
+                    Divider()
+                        .padding(.leading)
+                }
             }
-
-            // Category Subtotal
-            HStack {
-                Spacer()
-                Text("Subtotal:")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(formatAmount(categoryTotal / 150))
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.black.opacity(0.03))
         }
     }
 
     // MARK: - Expense Row
 
     private func expenseRow(_ expense: Expense) -> some View {
-        HStack(spacing: 8) {
-            // Date
-            VStack(alignment: .leading, spacing: 2) {
-                Text(expense.date, format: .dateTime.month(.abbreviated).day())
-                    .font(.caption)
-                    .fontWeight(.medium)
-                if expense.isWorkDay {
-                    Text("Work")
-                        .font(.system(size: 8))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(.blue.opacity(0.2)))
-                        .foregroundStyle(.blue)
-                }
-            }
-            .frame(width: 70, alignment: .leading)
+        let shortDate: String = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            return formatter.string(from: expense.date)
+        }()
+
+        return HStack(alignment: .firstTextBaseline, spacing: 16) {
+            // Date in large, light grey
+            Text(shortDate)
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(.secondary.opacity(0.4))
+                .frame(width: 70, alignment: .leading)
 
             // Merchant
-            VStack(alignment: .leading, spacing: 2) {
-                Text(expense.merchantName)
-                    .font(.subheadline)
-                    .lineLimit(1)
-                if !expense.expenseDescription.isEmpty {
-                    Text(expense.expenseDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(expense.merchantName)
+                .font(.body)
+                .fontWeight(.medium)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer()
 
             // Amount
-            VStack(alignment: .trailing, spacing: 2) {
-                if showYen {
-                    Text(formatAmount(expense.amountJPY / 150))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                } else {
-                    Text(formatAmount(expense.amountJPY / 150))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                }
-            }
-            .frame(width: 80, alignment: .trailing)
+            Text(formatAmount(expense.amountJPY / 150))
+                .font(.body)
+                .fontWeight(.medium)
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
     }
 
@@ -180,45 +122,37 @@ struct ReportView: View {
 
     private var grandTotalSection: some View {
         let grandTotal = expenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
+        let remaining = BudgetTracker.totalBudget - (grandTotal / 150)
 
-        return VStack(spacing: 0) {
+        return VStack(alignment: .leading, spacing: 20) {
             Divider()
-                .background(.black)
-                .frame(height: 2)
+                .padding(.horizontal)
 
-            HStack {
-                Text("GRAND TOTAL")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                Spacer()
-                Text(formatAmount(grandTotal / 150))
-                    .font(.title3)
-                    .fontWeight(.bold)
-            }
-            .padding()
-            .background(.black.opacity(0.05))
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Total")
+                    .font(.system(size: 56, weight: .black))
+                    .foregroundStyle(.primary)
 
-            // Budget Summary
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Budget: \(formatAmount(BudgetTracker.totalBudget))")
-                        .font(.caption)
-                    Text("Spent: \(formatAmount(grandTotal / 150))")
-                        .font(.caption)
+                HStack(spacing: 6) {
+                    Text(formatAmount(grandTotal / 150))
+                        .font(.title)
+                    Text("of")
+                        .font(.title)
+                        .foregroundStyle(.secondary.opacity(0.5))
+                    Text(formatAmount(BudgetTracker.totalBudget))
+                        .font(.title)
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    let remaining = BudgetTracker.totalBudget - (grandTotal / 150)
-                    Text("Remaining:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+
+                HStack(spacing: 0) {
                     Text(formatAmount(remaining))
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(remaining < 0 ? .red : .green)
+                        .font(.title2)
+                        .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                    Text(" remaining")
+                        .font(.title2)
+                        .foregroundStyle(.secondary.opacity(0.6))
                 }
             }
-            .padding()
+            .padding(.horizontal)
         }
     }
 
@@ -237,28 +171,6 @@ struct ReportView: View {
             formatter.currencyCode = "USD"
             formatter.maximumFractionDigits = 2
             return formatter.string(from: amount as NSNumber) ?? "$0.00"
-        }
-    }
-
-    private func categoryIcon(_ category: ExpenseCategory) -> String {
-        switch category {
-        case .food:
-            return "fork.knife"
-        case .transport:
-            return "car.fill"
-        case .other:
-            return "ellipsis.circle"
-        }
-    }
-
-    private func categoryColor(_ category: ExpenseCategory) -> Color {
-        switch category {
-        case .food:
-            return .blue
-        case .transport:
-            return .green
-        case .other:
-            return .orange
         }
     }
 }

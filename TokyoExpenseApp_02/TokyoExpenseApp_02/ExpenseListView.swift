@@ -4,7 +4,7 @@ import SwiftData
 struct ExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
-    @AppStorage("showYen") private var showYen = false
+    @AppStorage("showYen") private var showYen = true
 
     @State private var searchText = ""
     @State private var selectedCategory: ExpenseCategory? = nil
@@ -21,56 +21,61 @@ struct ExpenseListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Subtitle and currency toggle
-            HStack {
-                Text("\(filteredExpenses.count) total")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                // Currency Toggle
-                Toggle(isOn: $showYen) {
-                    Image(systemName: showYen ? "yensign.circle.fill" : "dollarsign.circle")
-                        .font(.title2)
-                }
-                .tint(.blue)
-                .labelsHidden()
-            }
-            .padding()
+            // Subtitle
+            Text("\(filteredExpenses.count) entries")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(.secondary.opacity(0.6))
+                .padding(.horizontal)
+                .padding(.top, 16)
 
-            // Category filters
+            // Category filters - minimalist text buttons
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    CategoryPill(text: "All", isSelected: selectedCategory == nil) {
+                HStack(spacing: 24) {
+                    Button {
                         selectedCategory = nil
+                    } label: {
+                        Text("All")
+                            .font(.body)
+                            .foregroundStyle(selectedCategory == nil ? .primary : .secondary)
+                            .opacity(selectedCategory == nil ? 1 : 0.5)
+                            .fontWeight(selectedCategory == nil ? .semibold : .regular)
                     }
 
                     ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                        CategoryPill(text: cat.rawValue, isSelected: selectedCategory == cat) {
+                        Button {
                             selectedCategory = cat
+                        } label: {
+                            Text(cat.rawValue)
+                                .font(.body)
+                                .foregroundStyle(selectedCategory == cat ? .primary : .secondary)
+                                .opacity(selectedCategory == cat ? 1 : 0.5)
+                                .fontWeight(selectedCategory == cat ? .semibold : .regular)
                         }
                     }
                 }
                 .padding(.horizontal)
             }
+            .padding(.vertical, 16)
 
             // Search
-            TextField("Search merchants...", text: $searchText)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.black.opacity(0.03))
-                )
+            TextField("Search", text: $searchText)
+                .font(.body)
                 .padding(.horizontal)
-                .padding(.vertical, 8)
+                .padding(.vertical, 12)
+
+            Divider()
+                .padding(.horizontal)
 
             // List
-            List {
-                ForEach(filteredExpenses) { expense in
-                    ExpenseRow(expense: expense, showYen: showYen)
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(filteredExpenses) { expense in
+                        ExpenseRow(expense: expense, showYen: showYen)
+                        Divider()
+                            .padding(.leading)
+                    }
                 }
-                .onDelete(perform: deleteExpenses)
             }
-            .listStyle(.plain)
         }
     }
 
@@ -85,45 +90,42 @@ struct ExpenseRow: View {
     let expense: Expense
     let showYen: Bool
 
+    private var shortDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: expense.date)
+    }
+
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expense.merchantName)
-                    .font(.headline)
-                HStack(spacing: 4) {
-                    Text(expense.date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if expense.isWorkDay {
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("Work Day")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            // Date in large, light grey
+            Text(shortDate)
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(.secondary.opacity(0.4))
+                .frame(width: 80, alignment: .leading)
+
+            // Merchant name
+            Text(expense.merchantName)
+                .font(.title3)
+                .fontWeight(.medium)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 4) {
-                if showYen {
-                    Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
-                        .font(.headline)
-                    Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
-                        .font(.headline)
-                    Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            // Amount
+            if showYen {
+                Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
+                    .font(.title3)
+                    .fontWeight(.medium)
+            } else {
+                Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
+                    .font(.title3)
+                    .fontWeight(.medium)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal)
+        .padding(.vertical, 16)
     }
 }
+

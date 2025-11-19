@@ -4,6 +4,7 @@ import SwiftData
 struct BudgetCarouselView: View {
     @Environment(\.dismiss) var dismiss
     @State private var selectedPage: Int = 0
+    @AppStorage("showYen") private var showYen = true
 
     private let pages = ["Budget", "Expenses", "Report"]
 
@@ -19,17 +20,19 @@ struct BudgetCarouselView: View {
                 }
             }
             .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.bottom, 0)
 
-            // Top bar with dismiss button
+            // Top bar with dismiss button and coin
             HStack {
                 LargeIconButton(icon: "xmark", size: 48) {
                     dismiss()
                 }
                 Spacer()
+                FlippingCoinView(size: 50, showYen: $showYen)
+                    .offset(x: -4)
             }
             .padding(.horizontal)
-            .padding(.top, 8)
+            .padding(.top, -20)
 
             // Carousel header
             GeometryReader { geometry in
@@ -68,252 +71,235 @@ struct BudgetCarouselView: View {
 struct BudgetContentView: View {
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
     @AppStorage("includeTravelDays") private var includeTravelDays = false
-    @AppStorage("showYen") private var showYen = false
+    @AppStorage("showYen") private var showYen = true
+    @State private var expandedCategories: Set<BudgetTracker.BudgetCategory> = []
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Date subtitle
-                Text("December 1-5, 2025")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
+            VStack(alignment: .leading, spacing: 0) {
+                // Date subtitle with travel days toggle
+                HStack {
+                    Text(includeTravelDays ? "Nov 28-Dec 7" : "Dec 1-5")
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundStyle(.secondary.opacity(0.6))
 
-                // Toggles
-                VStack(spacing: 12) {
-                    Toggle(isOn: $includeTravelDays) {
-                        HStack {
-                            Image(systemName: "airplane.departure")
-                                .foregroundStyle(.secondary)
-                            Text("Include Travel Days")
-                                .font(.subheadline)
+                    Spacer()
+
+                    // Custom slide toggle for travel days
+                    HStack(spacing: 0) {
+                        Image(systemName: "minus")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(includeTravelDays ? .secondary : .primary)
+                            .opacity(includeTravelDays ? 0.5 : 1.0)
+                            .frame(width: 32, height: 32)
+
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(includeTravelDays ? .primary : .secondary)
+                            .opacity(includeTravelDays ? 1.0 : 0.5)
+                            .frame(width: 32, height: 32)
+                    }
+                    .background(
+                        GeometryReader { geo in
+                            Circle()
+                                .fill(.primary.opacity(0.1))
+                                .frame(width: 32, height: 32)
+                                .offset(x: includeTravelDays ? geo.size.width / 2 : 0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: includeTravelDays)
+                        }
+                    )
+                    .background(
+                        Capsule()
+                            .fill(.primary.opacity(0.05))
+                    )
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            includeTravelDays.toggle()
                         }
                     }
-                    .tint(.blue)
-
-                    Toggle(isOn: $showYen) {
-                        HStack {
-                            Image(systemName: "yensign.circle")
-                                .foregroundStyle(.secondary)
-                            Text("Show in Yen (¥)")
-                                .font(.subheadline)
-                        }
-                    }
-                    .tint(.blue)
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.black.opacity(0.03))
-                )
-                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
 
                 // Total Budget Overview
-                totalBudgetCard
+                totalBudgetSection
+                    .padding(.bottom, 40)
 
                 // Budget Categories
-                VStack(spacing: 16) {
-                    ForEach(BudgetTracker.BudgetCategory.allCases, id: \.self) { category in
-                        budgetCategoryCard(category)
-                    }
-                }
-                .padding(.horizontal)
-
-                // Daily Per Diem Breakdown
-                if !includeTravelDays {
-                    dailyPerDiemSection
+                ForEach(BudgetTracker.BudgetCategory.allCases, id: \.self) { category in
+                    budgetCategorySection(category)
+                        .padding(.horizontal)
+                        .padding(.bottom, 40)
                 }
 
-                Spacer(minLength: 32)
+                Spacer(minLength: 40)
             }
             .padding(.vertical)
         }
     }
 
-    // MARK: - Total Budget Card
+    // MARK: - Total Budget Section
 
-    private var totalBudgetCard: some View {
+    private var totalBudgetSection: some View {
         let spent = BudgetTracker.totalSpent(from: expenses, includeTravelDays: includeTravelDays)
         let remaining = BudgetTracker.remainingBudget(from: expenses, includeTravelDays: includeTravelDays)
-        let progress = Double(truncating: (spent / BudgetTracker.totalBudget) as NSNumber)
 
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Total Budget")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    Text(formatAmount(BudgetTracker.totalBudget))
-                        .font(.system(size: 32, weight: .bold))
-                }
-                Spacer()
-                Circle()
-                    .fill(BudgetTracker.statusColor(for: progress))
-                    .frame(width: 12, height: 12)
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("Total")
+                .font(.system(size: 56, weight: .black))
+                .foregroundStyle(.primary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(formatAmount(spent))
+                    .font(.title)
+                Text("of")
+                    .font(.title)
+                    .foregroundStyle(.secondary.opacity(0.5))
+                Text(formatAmount(BudgetTracker.totalBudget))
+                    .font(.title)
             }
 
-            // Progress Bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.gray.opacity(0.2))
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(BudgetTracker.statusColor(for: progress))
-                        .frame(width: geo.size.width * CGFloat(min(progress, 1.0)))
-                }
-            }
-            .frame(height: 12)
-
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Spent")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(formatAmount(spent))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Remaining")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(formatAmount(remaining))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(remaining < 0 ? .red : .green)
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text(formatAmount(remaining))
+                    .font(.title2)
+                    .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                Text(" remaining")
+                    .font(.title2)
+                    .foregroundStyle(.secondary.opacity(0.6))
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-        )
         .padding(.horizontal)
     }
 
-    // MARK: - Budget Category Card
+    // MARK: - Budget Category Section
 
-    private func budgetCategoryCard(_ category: BudgetTracker.BudgetCategory) -> some View {
+    private func budgetCategorySection(_ category: BudgetTracker.BudgetCategory) -> some View {
         let spent = BudgetTracker.spentByCategory(category, from: expenses, includeTravelDays: includeTravelDays)
         let budget = category.budget
-        let progress = BudgetTracker.progress(for: category, from: expenses, includeTravelDays: includeTravelDays)
         let remaining = budget - spent
-
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: category.icon)
-                    .font(.title3)
-                    .foregroundStyle(category.color)
-                    .frame(width: 32)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(category.rawValue)
-                        .font(.headline)
-                    Text(formatAmount(budget))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(formatAmount(spent))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                    Text("\(Int(progress * 100))%")
-                        .font(.caption)
-                        .foregroundStyle(BudgetTracker.statusColor(for: progress))
-                }
-            }
-
-            // Progress Bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(category.color.opacity(0.2))
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(BudgetTracker.statusColor(for: progress))
-                        .frame(width: geo.size.width * CGFloat(min(progress, 1.0)))
-                }
-            }
-            .frame(height: 8)
-
-            if remaining < 0 {
-                Text("⚠️ Over budget by \(formatAmount(abs(remaining)))")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            } else {
-                Text("\(formatAmount(remaining)) remaining")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.black.opacity(0.03))
-        )
-    }
-
-    // MARK: - Daily Per Diem Section
-
-    private var dailyPerDiemSection: some View {
-        let dailySpending = BudgetTracker.dailyPerDiemSpending(from: expenses)
+        let isExpanded = expandedCategories.contains(category)
+        let canExpand = (category == .perDiem || category == .transport) && !includeTravelDays
 
         return VStack(alignment: .leading, spacing: 16) {
-            Text("Daily Per Diem Breakdown")
-                .font(.headline)
-                .padding(.horizontal)
+            // Category title
+            HStack {
+                Text(displayName(for: category))
+                    .font(.system(size: 48, weight: .black))
+                    .foregroundStyle(.primary)
 
-            VStack(spacing: 12) {
-                ForEach(BudgetTracker.allWorkDays(), id: \.self) { day in
-                    dailyPerDiemCard(day: day, spent: dailySpending[Calendar.current.startOfDay(for: day)] ?? 0)
+                if canExpand {
+                    Image(systemName: "chevron.right")
+                        .font(.title3)
+                        .foregroundStyle(.secondary.opacity(0.4))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isExpanded)
                 }
             }
-            .padding(.horizontal)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if canExpand {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        if isExpanded {
+                            expandedCategories.remove(category)
+                        } else {
+                            expandedCategories.insert(category)
+                        }
+                    }
+                }
+            }
+
+            // Spending info
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(formatAmount(spent))
+                    .font(.title2)
+                Text("of")
+                    .font(.title2)
+                    .foregroundStyle(.secondary.opacity(0.5))
+                Text(formatAmount(budget))
+                    .font(.title2)
+            }
+
+            // Remaining
+            Text(formatAmount(remaining))
+                .font(.title)
+                .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+
+            // Daily breakdown (expanded)
+            if isExpanded {
+                dailyBreakdownForCategory(category)
+                    .padding(.top, 8)
+            }
         }
     }
 
-    private func dailyPerDiemCard(day: Date, spent: Decimal) -> some View {
-        let progress = Double(truncating: (spent / BudgetTracker.perDiemDaily) as NSNumber)
+    private func dailyBreakdownForCategory(_ category: BudgetTracker.BudgetCategory) -> some View {
+        let dailySpending: [Date: Decimal]
 
-        return HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(day, style: .date)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(dayOfWeek(day))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        if category == .perDiem {
+            dailySpending = BudgetTracker.dailyPerDiemSpending(from: expenses)
+        } else if category == .transport {
+            // Compute transport daily spending inline to avoid dependency on missing API
+            var dict: [Date: Decimal] = [:]
+            let calendar = Calendar.current
+            let workDayExpenses = expenses.filter { $0.isWorkDay && $0.category == "Transport" }
+            for expense in workDayExpenses {
+                let dayStart = calendar.startOfDay(for: expense.date)
+                dict[dayStart, default: 0] += expense.amountJPY / 150 // Convert to USD
             }
+            dailySpending = dict
+        } else {
+            dailySpending = [:]
+        }
 
-            Spacer()
+        let dailyBudget = category == .perDiem ? BudgetTracker.perDiemDaily : BudgetTracker.transportDaily
 
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(formatAmount(spent))
-                    .font(.headline)
-                    .foregroundStyle(BudgetTracker.statusColor(for: progress))
-                Text("/ \(formatAmount(BudgetTracker.perDiemDaily))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        return VStack(spacing: 8) {
+            ForEach(BudgetTracker.allWorkDays(), id: \.self) { day in
+                dailyCard(day: day, spent: dailySpending[Calendar.current.startOfDay(for: day)] ?? 0, dailyBudget: dailyBudget)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(BudgetTracker.statusColor(for: progress).opacity(0.1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(BudgetTracker.statusColor(for: progress).opacity(0.3), lineWidth: 1)
-        )
+    }
+
+    private func dailyCard(day: Date, spent: Decimal, dailyBudget: Decimal) -> some View {
+        let remaining = dailyBudget - spent
+
+        return VStack(alignment: .leading, spacing: 8) {
+            // Date in large, light grey
+            Text(shortDate(day))
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(.secondary.opacity(0.4))
+
+            // Spending info
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(formatAmount(spent))
+                    .font(.title3)
+                Text("of")
+                    .font(.title3)
+                    .foregroundStyle(.secondary.opacity(0.5))
+                Text(formatAmount(dailyBudget))
+                    .font(.title3)
+            }
+
+            if remaining != 0 {
+                Text(formatAmount(remaining))
+                    .font(.body)
+                    .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     // MARK: - Helper Functions
+
+    private func displayName(for category: BudgetTracker.BudgetCategory) -> String {
+        switch category {
+        case .perDiem:
+            return "Food"
+        default:
+            return category.rawValue
+        }
+    }
 
     private func formatAmount(_ amount: Decimal) -> String {
         if showYen {
@@ -336,9 +322,16 @@ struct BudgetContentView: View {
         formatter.dateFormat = "EEEE"
         return formatter.string(from: date)
     }
+
+    private func shortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
 }
 
 #Preview {
     BudgetCarouselView()
         .modelContainer(for: Expense.self)
 }
+

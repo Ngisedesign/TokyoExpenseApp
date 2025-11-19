@@ -107,6 +107,23 @@ struct BudgetTracker {
         return dailySpending
     }
 
+    /// Calculate daily transport spending for work days
+    static func dailyTransportSpending(from expenses: [Expense]) -> [Date: Decimal] {
+        var dailySpending: [Date: Decimal] = [:]
+
+        let calendar = Calendar.current
+        let workDayExpenses = expenses.filter {
+            $0.isWorkDay && $0.category == "Transport"
+        }
+
+        for expense in workDayExpenses {
+            let dayStart = calendar.startOfDay(for: expense.date)
+            dailySpending[dayStart, default: 0] += expense.amountJPY / 150 // Convert to USD
+        }
+
+        return dailySpending
+    }
+
     /// Get progress percentage for a category (0.0 to 1.0+)
     static func progress(for category: BudgetCategory, from expenses: [Expense], includeTravelDays: Bool = false) -> Double {
         let spent = spentByCategory(category, from: expenses, includeTravelDays: includeTravelDays)
