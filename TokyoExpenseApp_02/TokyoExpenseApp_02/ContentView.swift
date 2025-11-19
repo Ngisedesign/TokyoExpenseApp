@@ -55,11 +55,13 @@ struct MaskedTextImage: View {
 
 struct FlippingCoinView: View {
     @State private var angle: Double = 0
+    @Binding var showYen: Bool
 
     let size: CGFloat
 
-    init(size: CGFloat = 90) {
+    init(size: CGFloat = 90, showYen: Binding<Bool>) {
         self.size = size
+        self._showYen = showYen
     }
 
     private var isFrontVisible: Bool {
@@ -190,6 +192,8 @@ struct FlippingCoinView: View {
         .rotation3DEffect(.degrees(0), axis: (x: 0, y: 0, z: 0), perspective: 0.8)
         .contentShape(Rectangle())
         .onTapGesture {
+            // Toggle currency
+            showYen.toggle()
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.15)) {
                 angle += 180
             }
@@ -202,24 +206,52 @@ struct ContentView: View {
     @State private var showQuickCamera: Bool = false
     @State private var capturedImage: UIImage? = nil
     @State private var showBudgetView: Bool = false
+    @State private var showYen: Bool = true
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
 
-    // Calculate budget data
-    private var foodSpent: Decimal {
+    // Food calculations
+    private var foodSpentToday: Decimal {
+        BudgetTracker.spentToday(.perDiem, from: expenses)
+    }
+
+    private var foodRollover: Decimal {
+        BudgetTracker.rolloverFromPreviousDays(.perDiem, from: expenses)
+    }
+
+    private var foodTotalSpent: Decimal {
         BudgetTracker.spentByCategory(.perDiem, from: expenses, includeTravelDays: false)
     }
 
-    private var foodRemaining: Decimal {
-        BudgetTracker.perDiemBudget - foodSpent
+    private var foodRemainingTotal: Decimal {
+        BudgetTracker.perDiemBudget - foodTotalSpent
     }
 
-    private var transportSpent: Decimal {
+    // Transport calculations
+    private var transportSpentToday: Decimal {
+        BudgetTracker.spentToday(.transport, from: expenses)
+    }
+
+    private var transportRollover: Decimal {
+        BudgetTracker.rolloverFromPreviousDays(.transport, from: expenses)
+    }
+
+    private var transportTotalSpent: Decimal {
         BudgetTracker.spentByCategory(.transport, from: expenses, includeTravelDays: false)
     }
 
-    private var transportRemaining: Decimal {
-        BudgetTracker.transportBudget - transportSpent
+    private var transportRemainingTotal: Decimal {
+        BudgetTracker.transportBudget - transportTotalSpent
+    }
+
+    // Format amount based on currency toggle
+    private func formatAmount(_ amount: Decimal) -> String {
+        if showYen {
+            let yenAmount = amount * 150
+            return "¥\(yenAmount.intValue)"
+        } else {
+            return "$\(amount.intValue)"
+        }
     }
 
     var body: some View {
@@ -237,7 +269,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Spacer()
-                    FlippingCoinView(size: 90)
+                    FlippingCoinView(size: 90, showYen: $showYen)
                     Spacer()
                 }
                 .padding(.top, 8)
@@ -246,14 +278,19 @@ struct ContentView: View {
                 MaskedTextImage(text: "Food", imageName: "sushi", font: .system(size: 72, weight: .black), scrimOpacity: 0.3)
                 HStack {
                     HStack(spacing: 6) {
-                        Text("$\(foodSpent.intValue) of $\(BudgetTracker.perDiemBudget.intValue)")
-                        Text(foodRemaining >= 0 ? "+\(foodRemaining.intValue)" : "\(foodRemaining.intValue)")
-                            .foregroundStyle(foodRemaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                        Text("\(formatAmount(foodSpentToday)) of \(formatAmount(BudgetTracker.perDiemDaily))")
+                        if foodRollover > 0 {
+                            Text("+\(formatAmount(foodRollover).dropFirst())")
+                                .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
+                        } else if foodRollover < 0 {
+                            Text(formatAmount(foodRollover))
+                                .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                        }
                     }
                     Spacer()
-                    // Budget progress percentage
-                    Text("\(Int((foodSpent.doubleValue / BudgetTracker.perDiemBudget.doubleValue) * 100))%")
-                        .foregroundStyle(.secondary)
+                    // Total remaining budget
+                    Text(formatAmount(foodRemainingTotal))
+                        .foregroundStyle(foodRemainingTotal >= 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
                         .padding(.trailing, 5)
                 }
                 .font(.title3)
@@ -266,14 +303,19 @@ struct ContentView: View {
                 MaskedTextImage(text: "Transport", imageName: "JRTrain", font: .system(size: 72, weight: .black), scrimOpacity: 0.3)
                 HStack {
                     HStack(spacing: 6) {
-                        Text("$\(transportSpent.intValue) of $\(BudgetTracker.transportBudget.intValue)")
-                        Text(transportRemaining >= 0 ? "+\(transportRemaining.intValue)" : "\(transportRemaining.intValue)")
-                            .foregroundStyle(transportRemaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                        Text("\(formatAmount(transportSpentToday)) of \(formatAmount(BudgetTracker.transportDaily))")
+                        if transportRollover > 0 {
+                            Text("+\(formatAmount(transportRollover).dropFirst())")
+                                .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
+                        } else if transportRollover < 0 {
+                            Text(formatAmount(transportRollover))
+                                .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                        }
                     }
                     Spacer()
-                    // Budget progress percentage
-                    Text("\(Int((transportSpent.doubleValue / BudgetTracker.transportBudget.doubleValue) * 100))%")
-                        .foregroundStyle(.secondary)
+                    // Total remaining budget
+                    Text(formatAmount(transportRemainingTotal))
+                        .foregroundStyle(transportRemainingTotal >= 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
                         .padding(.trailing, 5)
                 }
                 .font(.title3)

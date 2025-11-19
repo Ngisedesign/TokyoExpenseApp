@@ -9,6 +9,7 @@ struct BudgetTracker {
     static let perDiemDaily: Decimal = 80
     static let perDiemDays: Int = 5
     static let transportBudget: Decimal = 200
+    static let transportDaily: Decimal = 40 // $200 / 5 days
     static let flightBudget: Decimal = 3600
     static let hotelNightly: Decimal = 345
     static let hotelNights: Int = 5
@@ -149,4 +150,69 @@ struct BudgetTracker {
     static func remainingBudget(from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
         totalBudget - totalSpent(from: expenses, includeTravelDays: includeTravelDays)
     }
+
+    // MARK: - Daily Rollover Calculations
+
+    /// Calculate spending for today only
+    static func spentToday(_ category: BudgetCategory, from expenses: [Expense]) -> Decimal {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        let categoryExpenses: [Expense]
+        switch category {
+        case .perDiem:
+            categoryExpenses = expenses.filter {
+                $0.category == "Food/Per Diem" &&
+                calendar.startOfDay(for: $0.date) == today
+            }
+        case .transport:
+            categoryExpenses = expenses.filter {
+                $0.category == "Transport" &&
+                calendar.startOfDay(for: $0.date) == today
+            }
+        default:
+            return 0
+        }
+
+        return categoryExpenses.reduce(0) { $0 + $1.amountJPY } / 150
+    }
+
+    /// Calculate rollover from previous work days
+    static func rolloverFromPreviousDays(_ category: BudgetCategory, from expenses: [Expense]) -> Decimal {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        // Only calculate rollover for days before today
+        let previousDays = allWorkDays().filter { calendar.startOfDay(for: $0) < today }
+
+        guard !previousDays.isEmpty else { return 0 }
+
+        let dailyAllotment = category == .perDiem ? perDiemDaily : transportDaily
+        let totalAllotted = dailyAllotment * Decimal(previousDays.count)
+
+        // Calculate spent on previous days
+        let categoryExpenses: [Expense]
+        switch category {
+        case .perDiem:
+            categoryExpenses = expenses.filter { expense in
+                expense.category == "Food/Per Diem" &&
+                previousDays.contains { previousDay in
+                    calendar.startOfDay(for: previousDay) == calendar.startOfDay(for: expense.date)
+                }
+            }
+        case .transport:
+            categoryExpenses = expenses.filter { expense in
+                expense.category == "Transport" &&
+                previousDays.contains { previousDay in
+                    calendar.startOfDay(for: previousDay) == calendar.startOfDay(for: expense.date)
+                }
+            }
+        default:
+            return 0
+        }
+
+        let totalSpent = categoryExpenses.reduce(0) { $0 + $1.amountJPY } / 150
+        return totalAllotted - totalSpent
+    }
 }
+
