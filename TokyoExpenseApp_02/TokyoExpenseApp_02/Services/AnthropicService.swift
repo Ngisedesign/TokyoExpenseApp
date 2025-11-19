@@ -55,7 +55,7 @@ class AnthropicService {
         }
 
         // Parse the response
-        return try parseResponse(data: data)
+        return try parseResponse(data: data, metadataMerchant: metadataMerchant)
     }
 
     // MARK: - Private Methods
@@ -156,7 +156,7 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
         return request
     }
 
-    private func parseResponse(data: Data) throws -> ParsedReceipt {
+    private func parseResponse(data: Data, metadataMerchant: String?) throws -> ParsedReceipt {
         // Parse Anthropic API response
         let apiResponse = try JSONDecoder().decode(AnthropicResponse.self, from: data)
 
@@ -368,3 +368,4 @@ struct ReceiptJSON: Codable {
         case confidence
     }
 }
+

@@ -389,7 +389,7 @@ struct AddEntryView: View {
             amountUSD: amountUSD,
             exchangeRate: exchangeRate,
             receiptImagePaths: imagePaths,
-            isWorkDay: false, // TODO: Calculate based on date (Dec 1-5, 2025)
+            isWorkDay: BudgetTracker.isWorkDay(date),
             isManualEntry: ocrConfidence == nil,
             ocrConfidence: ocrConfidence
         )

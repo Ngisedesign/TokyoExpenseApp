@@ -4,6 +4,7 @@ import SwiftData
 struct ExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @AppStorage("showYen") private var showYen = false
 
     @State private var searchText = ""
     @State private var selectedCategory: ExpenseCategory? = nil
@@ -22,10 +23,22 @@ struct ExpenseListView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
-                Text("Expenses")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Expenses")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    Text("\(filteredExpenses.count) total")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
+                // Currency Toggle
+                Toggle(isOn: $showYen) {
+                    Image(systemName: showYen ? "yensign.circle.fill" : "dollarsign.circle")
+                        .font(.title2)
+                }
+                .tint(.blue)
+                .labelsHidden()
             }
             .padding()
 
@@ -58,7 +71,7 @@ struct ExpenseListView: View {
             // List
             List {
                 ForEach(filteredExpenses) { expense in
-                    ExpenseRow(expense: expense)
+                    ExpenseRow(expense: expense, showYen: showYen)
                 }
                 .onDelete(perform: deleteExpenses)
             }
@@ -75,25 +88,45 @@ struct ExpenseListView: View {
 
 struct ExpenseRow: View {
     let expense: Expense
+    let showYen: Bool
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(expense.merchantName)
                     .font(.headline)
-                Text(expense.date.formatted(date: .abbreviated, time: .omitted))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(expense.date.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if expense.isWorkDay {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Work Day")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.blue)
+                    }
+                }
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("¥\(expense.amountJPY.formatted())")
-                    .font(.headline)
-                Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if showYen {
+                    Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
+                        .font(.headline)
+                    Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
+                        .font(.headline)
+                    Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 4)

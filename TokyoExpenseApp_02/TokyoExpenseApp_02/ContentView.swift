@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Foundation
 
 // Extension to hide views conditionally
 extension View {
@@ -18,6 +19,11 @@ extension View {
             self
         }
     }
+}
+
+extension Decimal {
+    var intValue: Int { NSDecimalNumber(decimal: self).intValue }
+    var doubleValue: Double { NSDecimalNumber(decimal: self).doubleValue }
 }
 
 struct MaskedTextImage: View {
@@ -195,13 +201,32 @@ struct ContentView: View {
     @State private var isPresentingAdd: Bool = false
     @State private var showQuickCamera: Bool = false
     @State private var capturedImage: UIImage? = nil
+    @State private var showBudgetView: Bool = false
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
+
+    // Calculate budget data
+    private var foodSpent: Decimal {
+        BudgetTracker.spentByCategory(.perDiem, from: expenses, includeTravelDays: false)
+    }
+
+    private var foodRemaining: Decimal {
+        BudgetTracker.perDiemBudget - foodSpent
+    }
+
+    private var transportSpent: Decimal {
+        BudgetTracker.spentByCategory(.transport, from: expenses, includeTravelDays: false)
+    }
+
+    private var transportRemaining: Decimal {
+        BudgetTracker.transportBudget - transportSpent
+    }
 
     var body: some View {
         VStack(alignment: .leading) {
             HStack {
                 LargeIconButton(icon: "line.3.horizontal", size: 48) {
-                    // Menu action - to be implemented
+                    showBudgetView = true
                 }
                 Spacer()
                 LargeIconButton(icon: "plus", size: 48) {
@@ -221,36 +246,42 @@ struct ContentView: View {
                 MaskedTextImage(text: "Food", imageName: "sushi", font: .system(size: 72, weight: .black), scrimOpacity: 0.3)
                 HStack {
                     HStack(spacing: 6) {
-                        Text("0 out of 60")
-                        Text("+22")
-                            .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
+                        Text("$\(foodSpent.intValue) of $\(BudgetTracker.perDiemBudget.intValue)")
+                        Text(foodRemaining >= 0 ? "+\(foodRemaining.intValue)" : "\(foodRemaining.intValue)")
+                            .foregroundStyle(foodRemaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
                     }
                     Spacer()
-                    // Total remaining for the trip
-                    Text("1000")
+                    // Budget progress percentage
+                    Text("\(Int((foodSpent.doubleValue / BudgetTracker.perDiemBudget.doubleValue) * 100))%")
                         .foregroundStyle(.secondary)
                         .padding(.trailing, 5)
                 }
                 .font(.title3)
                 .padding(.bottom, 8)
                 .padding(.leading, 6)
+                .onTapGesture {
+                    showBudgetView = true
+                }
 
                 MaskedTextImage(text: "Transport", imageName: "JRTrain", font: .system(size: 72, weight: .black), scrimOpacity: 0.3)
                 HStack {
                     HStack(spacing: 6) {
-                        Text("0 out of 60")
-                        Text("-15")
-                            .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                        Text("$\(transportSpent.intValue) of $\(BudgetTracker.transportBudget.intValue)")
+                        Text(transportRemaining >= 0 ? "+\(transportRemaining.intValue)" : "\(transportRemaining.intValue)")
+                            .foregroundStyle(transportRemaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
                     }
                     Spacer()
-                    // Total remaining for the trip
-                    Text("1000")
+                    // Budget progress percentage
+                    Text("\(Int((transportSpent.doubleValue / BudgetTracker.transportBudget.doubleValue) * 100))%")
                         .foregroundStyle(.secondary)
                         .padding(.trailing, 5)
                 }
                 .font(.title3)
                 .padding(.bottom, 8)
                 .padding(.leading, 6)
+                .onTapGesture {
+                    showBudgetView = true
+                }
             }
             Spacer()
             HStack {
@@ -266,6 +297,9 @@ struct ContentView: View {
         .padding()
         .fullScreenCover(isPresented: $isPresentingAdd) {
             AddEntryView()
+        }
+        .fullScreenCover(isPresented: $showBudgetView) {
+            BudgetView()
         }
         .sheet(isPresented: $showQuickCamera) {
             QuickCameraView(capturedImage: $capturedImage)
@@ -306,8 +340,9 @@ struct ContentView: View {
         // Create expense
         let amountJPY = parsedReceipt?.totalAmountYen ?? Decimal(0)
         let exchangeRate: Decimal = 150
+        let expenseDate = parsedReceipt?.date ?? Date()
         let expense = Expense(
-            date: parsedReceipt?.date ?? Date(),
+            date: expenseDate,
             category: parsedReceipt?.category ?? "Other",
             merchantName: parsedReceipt?.merchantName ?? "Quick Capture",
             expenseDescription: "",
@@ -315,7 +350,7 @@ struct ContentView: View {
             amountUSD: amountJPY / exchangeRate,
             exchangeRate: exchangeRate,
             receiptImagePaths: [imagePath],
-            isWorkDay: false,
+            isWorkDay: BudgetTracker.isWorkDay(expenseDate),
             isManualEntry: false,
             ocrConfidence: parsedReceipt?.confidence
         )
