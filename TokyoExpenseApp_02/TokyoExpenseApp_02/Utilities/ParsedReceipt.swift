@@ -2,6 +2,7 @@ import Foundation
 
 struct ParsedReceipt {
     var merchantName: String?
+    var merchantIsPlaceholder: Bool
     var date: Date?
     var totalAmount: Decimal?
     var currency: String?
@@ -17,6 +18,7 @@ struct ParsedReceipt {
 
     // Explicit initializer to avoid Swift memberwise init issues
     init(merchantName: String? = nil,
+         merchantIsPlaceholder: Bool = false,
          date: Date? = nil,
          totalAmount: Decimal? = nil,
          currency: String? = nil,
@@ -25,6 +27,7 @@ struct ParsedReceipt {
          isUberReceipt: Bool,
          suggestedCategory: String? = nil) {
         self.merchantName = merchantName
+        self.merchantIsPlaceholder = merchantIsPlaceholder
         self.date = date
         self.totalAmount = totalAmount
         self.currency = currency

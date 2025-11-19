@@ -15,10 +15,14 @@ struct AddEntryView: View {
     @State private var showLibraryPicker: Bool = false
     @State private var category: ExpenseCategory = .food
 
-    // OCR state
+    // Receipt parsing state
     @State private var isProcessingOCR: Bool = false
     @State private var ocrConfidence: Float? = nil
     @State private var ocrError: String? = nil
+    @State private var merchantIsPlaceholder: Bool = false
+    @State private var showBugDialog: Bool = false
+    @State private var bugOffset: CGFloat = 500 // Start off-screen
+    @State private var bugWiggle: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -43,36 +47,12 @@ struct AddEntryView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // OCR Processing Indicator
+                    // Receipt Processing Indicator
                     if isProcessingOCR {
                         HStack {
                             ProgressView()
-                            Text("Processing receipt...")
+                            Text("Analyzing receipt with AI...")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // OCR Confidence Score
-                    if let confidence = ocrConfidence {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("OCR Confidence: \(Int(confidence * 100))%")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // OCR Error
-                    if let error = ocrError {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(error)
-                                .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.horizontal)
@@ -137,16 +117,48 @@ struct AddEntryView: View {
 
                     // Merchant Name
                     LabeledField(label: "Merchant") {
-                        TextField("Where did you spend?", text: $merchant)
-                            .font(.title2)
-                            .fontWeight(.medium)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                TextField("Where did you spend?", text: $merchant)
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(merchantIsPlaceholder ? .red : .black)
+                                    .onChange(of: merchant) { _, _ in
+                                        // User is editing - no longer a placeholder
+                                        if merchantIsPlaceholder {
+                                            merchantIsPlaceholder = false
+                                        }
+                                    }
+
+                                if merchantIsPlaceholder {
+                                    Text("NEEDS REVIEW")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            Capsule()
+                                                .fill(.red)
+                                        )
+                                }
+                            }
                             .padding()
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.black.opacity(0.03))
+                                    .fill(merchantIsPlaceholder ? .red.opacity(0.05) : .black.opacity(0.03))
                             )
+
+                            if merchantIsPlaceholder {
+                                Text("🎨 AI-generated name - please update with actual merchant")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                    .padding(.leading, 4)
+                            }
+                        }
                     }
 
+                    // Amount and Date separated
                     // Amount in Yen
                     LabeledField(label: "Amount") {
                         VStack(alignment: .leading, spacing: 8) {
@@ -186,18 +198,65 @@ struct AddEntryView: View {
                 .padding(.horizontal)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            // Climbing bug for errors
+            if ocrError != nil {
+                Button {
+                    showBugDialog = true
+                } label: {
+                    Text("🐛")
+                        .font(.system(size: 60))
+                        .shadow(radius: 4)
+                        .rotationEffect(.degrees(bugWiggle ? -10 : -20))
+                }
+                .offset(x: -20, y: bugOffset)
+                .animation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: bugWiggle)
+            }
+        }
+        .alert("🐛 Error Details", isPresented: $showBugDialog) {
+            Button("Copy Error") {
+                if let error = ocrError {
+                    UIPasteboard.general.string = error
+                }
+            }
+            Button("Dismiss", role: .cancel) { }
+        } message: {
+            if let error = ocrError {
+                Text(error)
+            }
+        }
         .sheet(isPresented: $showCamera) {
             ImagePickerController(image: $selectedImageUI, sourceType: .camera)
         }
         .photosPicker(isPresented: $showLibraryPicker, selection: $selectedItem, matching: .images)
-        .onChange(of: selectedItem) { newItem in
+        .onChange(of: selectedItem) { oldValue, newValue in
             Task {
-                await loadImage(from: newItem)
-
-                // Trigger OCR after image loads
-                if let image = selectedImageUI {
+                await loadImage(from: newValue)
+            }
+        }
+        .onChange(of: selectedImageUI) { oldValue, newValue in
+            // Trigger receipt parsing whenever image changes (camera or library)
+            if let image = newValue {
+                Task {
                     await processReceiptImage(image)
                 }
+            }
+        }
+        .onChange(of: ocrError) { oldValue, newValue in
+            // Reset bug position when new error appears
+            if newValue != nil {
+                bugOffset = 500 // Reset to off-screen
+                bugWiggle = false
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
+                    bugOffset = -20
+                }
+                // Start wiggling after climbing
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                    bugWiggle = true
+                }
+            } else {
+                bugOffset = 500 // Hide when error is cleared
+                bugWiggle = false
             }
         }
     }
@@ -208,67 +267,100 @@ struct AddEntryView: View {
     }
 
     private func processReceiptImage(_ image: UIImage) async {
-        isProcessingOCR = true
-        ocrError = nil
-
-        // Step 1: Run OCR
-        let ocrResult = await OCRService.shared.recognizeText(in: image)
-
-        // Step 2: Parse with HybridParser
-        if #available(iOS 26.0, *) {
-            do {
-                let parsed = try await HybridParser.shared.parseReceipt(
-                    from: ocrResult.textElements,
-                    confidence: ocrResult.confidence
-                )
-
-                // Step 3: Auto-fill form
-                await MainActor.run {
-                    if let merchantName = parsed.merchantName {
-                        merchant = merchantName
-                    }
-                    if let amount = parsed.totalAmountYen {
-                        amountYen = String(format: "%.0f", amount as CVarArg)
-                    }
-                    if let parsedDate = parsed.date {
-                        date = parsedDate
-                    }
-                    if let categoryStr = parsed.category,
-                       let parsedCategory = ExpenseCategory(rawValue: categoryStr) {
-                        category = parsedCategory
-                    }
-                    ocrConfidence = parsed.confidence
-                }
-            } catch {
-                // Fallback to SpatialParser
-                let parsed = SpatialReceiptParser.shared.parseReceipt(
-                    from: ocrResult.textElements,
-                    confidence: ocrResult.confidence
-                )
-
-                await MainActor.run {
-                    if let amount = parsed.totalAmountYen {
-                        amountYen = String(format: "%.0f", amount as CVarArg)
-                    }
-                    ocrConfidence = parsed.confidence
-                }
-            }
-        } else {
-            // Older iOS: Use SpatialParser only
-            let parsed = SpatialReceiptParser.shared.parseReceipt(
-                from: ocrResult.textElements,
-                confidence: ocrResult.confidence
-            )
-
-            await MainActor.run {
-                if let amount = parsed.totalAmountYen {
-                    amountYen = String(format: "%.0f", amount as CVarArg)
-                }
-                ocrConfidence = parsed.confidence
-            }
+        // Reset state
+        await MainActor.run {
+            isProcessingOCR = true
+            ocrError = nil
+            ocrConfidence = nil
+            merchantIsPlaceholder = false
         }
 
-        isProcessingOCR = false
+        do {
+            print("📸 Starting receipt parsing...")
+
+            // Use Anthropic API for receipt parsing
+            let parsed = try await AnthropicService.shared.parseReceipt(image: image)
+
+            print("✅ Receipt parsed successfully!")
+            print("   Merchant: \(parsed.merchantName ?? "nil")")
+            print("   Amount: \(parsed.totalAmountYen?.description ?? "nil")")
+            print("   Date: \(parsed.date?.description ?? "nil")")
+            print("   Category: \(parsed.category ?? "nil")")
+            print("   Confidence: \(parsed.confidence)")
+
+            // Auto-fill form with parsed data
+            await MainActor.run {
+                var fieldsFound: [String] = []
+                var fieldsMissing: [String] = []
+
+                if let merchantName = parsed.merchantName {
+                    merchant = merchantName
+                    merchantIsPlaceholder = parsed.merchantIsPlaceholder
+
+                    if parsed.merchantIsPlaceholder {
+                        fieldsMissing.append("merchant (AI-generated)")
+                        print("🎨 Using whimsical placeholder: '\(merchantName)'")
+                    } else {
+                        fieldsFound.append("merchant")
+                    }
+                } else {
+                    // Fallback if Claude doesn't return any name (shouldn't happen with new prompt)
+                    merchant = "Unknown Merchant"
+                    merchantIsPlaceholder = true
+                    fieldsMissing.append("merchant")
+                    print("⚠️ No merchant name returned - using fallback")
+                }
+
+                if let amount = parsed.totalAmountYen {
+                    // Convert Decimal to String (no decimal places for Yen) using banker's rounding
+                    let nsAmount = NSDecimalNumber(decimal: amount)
+                    let handler = NSDecimalNumberHandler(roundingMode: .bankers,
+                                                         scale: 0,
+                                                         raiseOnExactness: false,
+                                                         raiseOnOverflow: false,
+                                                         raiseOnUnderflow: false,
+                                                         raiseOnDivideByZero: false)
+                    let rounded = nsAmount.rounding(accordingToBehavior: handler)
+                    amountYen = rounded.stringValue
+                    fieldsFound.append("amount")
+                } else {
+                    fieldsMissing.append("amount")
+                }
+
+                if let parsedDate = parsed.date {
+                    date = parsedDate
+                    fieldsFound.append("date")
+                    print("📅 Setting date to: \(parsedDate)")
+                } else {
+                    fieldsMissing.append("date")
+                    print("⚠️ No date found in receipt")
+                }
+
+                if let categoryStr = parsed.category,
+                   let parsedCategory = ExpenseCategory(rawValue: categoryStr) {
+                    category = parsedCategory
+                    fieldsFound.append("category")
+                }
+
+                ocrConfidence = parsed.confidence
+
+                // Clear any previous errors on successful parse
+                ocrError = nil
+
+                if !fieldsMissing.isEmpty {
+                    let missingList = fieldsMissing.joined(separator: ", ")
+                    print("⚠️ Missing fields: \(missingList)")
+                }
+
+                isProcessingOCR = false
+            }
+        } catch {
+            print("❌ Receipt parsing failed: \(error)")
+            await MainActor.run {
+                ocrError = "Failed to parse receipt: \(error.localizedDescription)"
+                isProcessingOCR = false
+            }
+        }
     }
 
     private func saveExpense() {

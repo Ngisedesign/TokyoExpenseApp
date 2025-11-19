@@ -264,14 +264,14 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .sheet(isPresented: $isPresentingAdd) {
+        .fullScreenCover(isPresented: $isPresentingAdd) {
             AddEntryView()
         }
         .sheet(isPresented: $showQuickCamera) {
             QuickCameraView(capturedImage: $capturedImage)
         }
-        .onChange(of: capturedImage) { newImage in
-            if let image = newImage {
+        .onChange(of: capturedImage) { oldValue, newValue in
+            if let image = newValue {
                 Task {
                     await processQuickCapture(image)
                 }
