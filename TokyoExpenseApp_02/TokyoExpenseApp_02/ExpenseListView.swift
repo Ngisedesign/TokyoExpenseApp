@@ -21,16 +21,11 @@ struct ExpenseListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
+            // Subtitle and currency toggle
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Expenses")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    Text("\(filteredExpenses.count) total")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text("\(filteredExpenses.count) total")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 // Currency Toggle
                 Toggle(isOn: $showYen) {

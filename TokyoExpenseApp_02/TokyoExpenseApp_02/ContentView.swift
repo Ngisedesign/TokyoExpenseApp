@@ -341,7 +341,7 @@ struct ContentView: View {
             AddEntryView()
         }
         .fullScreenCover(isPresented: $showBudgetView) {
-            BudgetView()
+            BudgetCarouselView()
         }
         .sheet(isPresented: $showQuickCamera) {
             QuickCameraView(capturedImage: $capturedImage)

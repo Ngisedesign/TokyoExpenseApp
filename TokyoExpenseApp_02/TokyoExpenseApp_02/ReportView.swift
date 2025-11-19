@@ -12,41 +12,34 @@ struct ReportView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Expense Report")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                        Text("Tokyo Trip • Dec 1-5, 2025")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        showExportSheet = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                    }
+            // Subtitle and export button
+            HStack {
+                Text("Tokyo Trip • Dec 1-5, 2025")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    showExportSheet = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
                 }
-                .padding()
-
-                // Currency Toggle
-                Toggle(isOn: $showYen) {
-                    HStack {
-                        Image(systemName: "yensign.circle")
-                            .foregroundStyle(.secondary)
-                        Text("Show in Yen (¥)")
-                            .font(.subheadline)
-                    }
-                }
-                .tint(.blue)
-                .padding(.horizontal)
-                .padding(.bottom)
             }
+            .padding()
+
+            // Currency Toggle
+            Toggle(isOn: $showYen) {
+                HStack {
+                    Image(systemName: "yensign.circle")
+                        .foregroundStyle(.secondary)
+                    Text("Show in Yen (¥)")
+                        .font(.subheadline)
+                }
+            }
+            .tint(.blue)
+            .padding(.horizontal)
+            .padding(.bottom)
             .background(.white)
 
             Divider()
