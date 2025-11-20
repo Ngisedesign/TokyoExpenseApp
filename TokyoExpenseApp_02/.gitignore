@@ -17,19 +17,56 @@ DerivedData
 *.ipa
 *.xcuserstate
 project.xcworkspace
+*.xcworkspace
+!default.xcworkspace
 
-# API Keys
+# API Keys & Secrets - NEVER COMMIT THESE
 TokyoExpenseApp_02/Config/APIKeys.swift
+**/APIKeys.swift
+*.plist.secret
+.env
+.env.local
+secrets.json
+credentials.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
 # CocoaPods
 Pods/
+Podfile.lock
 
 # Swift Package Manager
 .swiftpm/
 .build/
+Package.resolved
 
 # Fastlane
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
+
+# Xcode Build
+DerivedData/
+*.moved-aside
+*.xcuserstate
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+!default.perspectivev3
+
+# Temporary files
+*.swp
+*.swo
+*~.nib
+.idea/
+*.orig
+
+# App Store
+*.ipa
+*.dSYM.zip
+*.dSYM
