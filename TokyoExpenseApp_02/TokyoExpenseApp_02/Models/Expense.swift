@@ -65,7 +65,7 @@ final class Expense {
 }
 
 enum ExpenseCategory: String, CaseIterable, Codable {
-    case food = "Food/Per Diem"
+    case food = "Food"
     case transport = "Transport"
     case other = "Other"
 

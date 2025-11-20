@@ -74,16 +74,24 @@ class AnthropicService {
         let prompt = """
 You are a receipt parsing expert specializing in Japanese receipts. Extract ALL information you can find.
 
-**CRITICAL: Extract what you CAN see, even if some fields are missing!**
+CRITICAL: If the receipt shows an explicit exchange rate converting JPY to USD (e.g., rates printed on a credit card slip) and/or a USD total, EXTRACT those and PREFER them over any external exchange rate APIs. Only omit if not visible.
 
-**What to look for:**
+IMPORTANT: Extract what you CAN see, even if some fields are missing!
 
-1. **Total Amount** (HIGHEST PRIORITY):
+What to look for:
+
+1. Total Amount in JPY (HIGHEST PRIORITY):
    - Look for: 合計, 小計, 合計(税込), Total, Grand Total
    - Usually at the bottom of the receipt
    - Return the FINAL total (after tax if shown)
 
-2. **Merchant/Store Name**:
+2. USD Total (if shown on the receipt):
+   - Some card slips print both JPY and USD totals. If a USD total is printed, extract it.
+
+3. Exchange Rate (if shown):
+   - If a JPY→USD exchange rate is printed (e.g., 1 USD = 150 JPY or ¥150 = $1), extract it as JPY per 1 USD.
+
+4. Merchant/Store Name:
    - Look for: Restaurant name, store name at TOP, or large logo text
    - Common stores: LAWSON, セブンイレブン, ファミリーマート, ドン・キホーテ, etc.
    - If NO clear merchant name is visible, you MUST invent a creative, whimsical Japanese-style placeholder name:
@@ -98,18 +106,18 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
      * Make it sound like a REAL cozy Japanese place with personality
    - NEVER return null - always generate a creative Japanese name if real one isn't visible
 
-3. **Date**:
+5. Date:
    - Look for: Date near top of receipt
    - Common formats: 2024年11月18日, 2024/11/18, 2024-11-18
    - Return in format: YYYY-MM-DD
    - If not visible/cropped, set to null
 
-4. **Category** (guess from context):
+6. Category (guess from context):
    - "Food/Per Diem": Food items, restaurants, convenience stores, cafes, supermarkets
    - "Transport": Taxis, trains, buses, subway, ride-shares
    - "Other": Everything else
 
-5. **Description** (generate simple, natural description):
+7. Description (generate simple, natural description):
    - Infer from receipt items, merchant type, and timestamp
    - Simple categories: "Breakfast", "Lunch", "Dinner", "Snack", "Coffee", "Groceries", "Taxi", "Train", "Subway", "Convenience Store", etc.
    - Use time of day to help infer meal type if applicable
@@ -123,7 +131,7 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
      * Train station → "Train"
    - If unclear from context, use generic: "Purchase", "Meal", "Transport"
 
-**IMPORTANT:**
+IMPORTANT:
 - merchant: ALWAYS provide a name (real or whimsical placeholder)
 - merchant_is_real: true if actual merchant name found, false if you invented a whimsical placeholder
 - If date is missing, set to null (don't guess)
@@ -131,12 +139,14 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
 - Set confidence based on clarity (0.0-1.0)
 - description: Provide a simple, concise description (1-2 words)
 
-**CRITICAL: Return ONLY the JSON object below. No markdown, no explanations, no commentary.**
+CRITICAL: Return ONLY the JSON object below. No markdown, no explanations, no commentary.
 
 {
   "merchant": "Actual Store Name or Whimsical Placeholder",
   "merchant_is_real": true,
   "amount": 1234,
+  "amount_usd": 12.34,
+  "exchange_rate_jpy_per_usd": 150.0,
   "date": "2024-11-18 or null",
   "category": "Food/Per Diem",
   "description": "Lunch",
@@ -205,6 +215,8 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
         print("   Merchant: \(receiptData.merchant ?? "nil")")
         print("   Merchant is real: \(receiptData.merchantIsReal ?? false)")
         print("   Amount: \(receiptData.amount?.description ?? "nil")")
+        print("   Amount USD: \(receiptData.amountUSD?.description ?? "nil")")
+        print("   Exchange Rate (JPY/USD): \(receiptData.exchangeRateJPYPerUSD?.description ?? "nil")")
         print("   Date: \(receiptData.date ?? "nil")")
         print("   Category: \(receiptData.category ?? "nil")")
         print("   Description: \(receiptData.description ?? "nil")")
@@ -231,7 +243,9 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
             confidence: receiptData.confidence ?? 0.8,
             isUberReceipt: finalMerchantName?.lowercased().contains("uber") ?? false,
             suggestedCategory: receiptData.category,
-            expenseDescription: receiptData.description
+            expenseDescription: receiptData.description,
+            exchangeRateJPYPerUSD: receiptData.exchangeRateJPYPerUSD.map { Decimal($0) },
+            totalAmountUSD: receiptData.amountUSD.map { Decimal($0) }
         )
     }
 
@@ -373,6 +387,8 @@ struct ReceiptJSON: Codable {
     let merchant: String?
     let merchantIsReal: Bool?
     let amount: Double?
+    let amountUSD: Double?
+    let exchangeRateJPYPerUSD: Double?
     let date: String?
     let category: String?
     let confidence: Float?
@@ -382,10 +398,11 @@ struct ReceiptJSON: Codable {
         case merchant
         case merchantIsReal = "merchant_is_real"
         case amount
+        case amountUSD = "amount_usd"
+        case exchangeRateJPYPerUSD = "exchange_rate_jpy_per_usd"
         case date
         case category
         case confidence
         case description
     }
 }
-

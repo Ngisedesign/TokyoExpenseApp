@@ -22,6 +22,8 @@ struct AddEntryView: View {
     @State private var ocrError: String? = nil
     @State private var merchantIsPlaceholder: Bool = false
     @State private var descriptionIsAIGenerated: Bool = false
+    @State private var aiExchangeRate: Decimal? = nil
+    @State private var aiAmountUSD: Decimal? = nil
     @State private var showBugDialog: Bool = false
     @State private var bugOffset: CGFloat = 500 // Start off-screen
     @State private var bugWiggle: Bool = false
@@ -217,10 +219,18 @@ struct AddEntryView: View {
                                     .fill(.black.opacity(0.03))
                             )
 
-                            Text("Exchange rate: ¥150 = $1 USD")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 4)
+                            Group {
+                                if let rate = aiExchangeRate {
+                                    Text("Using receipt exchange rate: \u{00a5}\(NSDecimalNumber(decimal: rate).stringValue) = $1 USD")
+                                } else if let cached = ExchangeRateService.shared.getCachedRate(for: date) {
+                                    Text("Using cached exchange rate: \u{00a5}\(NSDecimalNumber(decimal: cached).stringValue) = $1 USD")
+                                } else {
+                                    Text("Exchange rate will be fetched on save")
+                                }
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 4)
                         }
                     }
 
@@ -312,6 +322,8 @@ struct AddEntryView: View {
             ocrError = nil
             ocrConfidence = nil
             merchantIsPlaceholder = false
+            aiExchangeRate = nil
+            aiAmountUSD = nil
         }
 
         do {
@@ -327,7 +339,6 @@ struct AddEntryView: View {
             print("   Category: \(parsed.category ?? "nil")")
             print("   Confidence: \(parsed.confidence)")
 
-            // Auto-fill form with parsed data
             await MainActor.run {
                 var fieldsFound: [String] = []
                 var fieldsMissing: [String] = []
@@ -388,6 +399,15 @@ struct AddEntryView: View {
                     print("💬 AI generated description: '\(description)'")
                 }
 
+                if let rate = parsed.exchangeRateJPYPerUSD {
+                    aiExchangeRate = rate
+                    print("💱 Detected receipt exchange rate: \u{00a5}\(rate) per $1")
+                }
+                if let usd = parsed.totalAmountUSD {
+                    aiAmountUSD = usd
+                    print("💵 Detected receipt total in USD: $\(usd)")
+                }
+
                 ocrConfidence = parsed.confidence
 
                 // Clear any previous errors on successful parse
@@ -413,20 +433,38 @@ struct AddEntryView: View {
         // Convert amountYen string to Decimal
         let amountJPY = Decimal(string: amountYen) ?? 0
 
-        // Fetch exchange rate for the expense date
-        print("📊 Fetching exchange rate for \(date)...")
         var exchangeRate: Decimal = BudgetTracker.defaultExchangeRate
+        var amountUSD: Decimal
         var needsUpdate = false
 
-        if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: date) {
-            exchangeRate = fetchedRate
-            print("✅ Successfully fetched exchange rate: \(fetchedRate)")
-        } else {
-            print("⚠️ Failed to fetch exchange rate, using default: \(BudgetTracker.defaultExchangeRate)")
-            needsUpdate = true
+        if let aiRate = aiExchangeRate {
+            exchangeRate = aiRate
+            print("✅ Using receipt-provided exchange rate: \u{00a5}\(aiRate) per $1")
         }
 
-        let amountUSD = amountJPY / exchangeRate
+        if let aiUSD = aiAmountUSD {
+            amountUSD = aiUSD
+            if aiExchangeRate == nil {
+                // Backfill exchange rate from JPY and USD if possible
+                if amountJPY > 0 {
+                    exchangeRate = amountJPY / aiUSD
+                    print("🔄 Derived exchange rate from receipt amounts: \u{00a5}\(exchangeRate) per $1")
+                }
+            }
+        } else {
+            // No USD on receipt; compute using exchange rate, fetching API only if no receipt rate
+            if aiExchangeRate == nil {
+                print("📊 Fetching exchange rate for \(date)...")
+                if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: date) {
+                    exchangeRate = fetchedRate
+                    print("✅ Successfully fetched exchange rate: \(fetchedRate)")
+                } else {
+                    print("⚠️ Failed to fetch exchange rate, using default: \(BudgetTracker.defaultExchangeRate)")
+                    needsUpdate = true
+                }
+            }
+            amountUSD = amountJPY / exchangeRate
+        }
 
         // Save receipt image
         var imagePaths: [String] = []
@@ -485,3 +523,4 @@ struct AddEntryView: View {
 #Preview {
     AddEntryView()
 }
+

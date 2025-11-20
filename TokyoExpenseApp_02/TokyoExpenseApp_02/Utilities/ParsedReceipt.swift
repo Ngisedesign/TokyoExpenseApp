@@ -11,6 +11,8 @@ struct ParsedReceipt {
     var isUberReceipt: Bool
     var suggestedCategory: String?
     var expenseDescription: String?
+    var exchangeRateJPYPerUSD: Decimal?
+    var totalAmountUSD: Decimal?
 
     struct LineItem {
         let description: String
@@ -27,7 +29,9 @@ struct ParsedReceipt {
          confidence: Float,
          isUberReceipt: Bool,
          suggestedCategory: String? = nil,
-         expenseDescription: String? = nil) {
+         expenseDescription: String? = nil,
+         exchangeRateJPYPerUSD: Decimal? = nil,
+         totalAmountUSD: Decimal? = nil) {
         self.merchantName = merchantName
         self.merchantIsPlaceholder = merchantIsPlaceholder
         self.date = date
@@ -38,6 +42,8 @@ struct ParsedReceipt {
         self.isUberReceipt = isUberReceipt
         self.suggestedCategory = suggestedCategory
         self.expenseDescription = expenseDescription
+        self.exchangeRateJPYPerUSD = exchangeRateJPYPerUSD
+        self.totalAmountUSD = totalAmountUSD
     }
 
     // Computed properties for compatibility with migration plan
@@ -51,3 +57,4 @@ struct ParsedReceipt {
         set { suggestedCategory = newValue }
     }
 }
+
