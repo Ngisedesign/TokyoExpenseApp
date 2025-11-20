@@ -6,6 +6,8 @@ struct ReportView: View {
     @AppStorage("showYen") private var showYen = true
     @AppStorage("includeTravelDays") private var includeTravelDays = false
     @State private var showExportSheet = false
+    @State private var selectedExpense: Expense?
+    @State private var showingDetailView = false
 
     private var filteredExpenses: [Expense] {
         includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
@@ -57,6 +59,11 @@ struct ReportView: View {
         .sheet(isPresented: $showExportSheet) {
             ExportView()
         }
+        .sheet(isPresented: $showingDetailView) {
+            if let expense = selectedExpense {
+                ExpenseDetailView(expense: expense)
+            }
+        }
     }
 
     // MARK: - Category Section
@@ -81,6 +88,10 @@ struct ReportView: View {
             VStack(spacing: 0) {
                 ForEach(expenses) { expense in
                     expenseRow(expense)
+                        .onTapGesture {
+                            selectedExpense = expense
+                            showingDetailView = true
+                        }
                     Divider()
                         .padding(.leading)
                 }
@@ -92,19 +103,28 @@ struct ReportView: View {
 
     private func expenseRow(_ expense: Expense) -> some View {
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
                 // Date in large, light grey
                 Text(DateFormatters.shortDate(expense.date))
                     .font(.system(size: 24, weight: .medium))
                     .foregroundStyle(.secondary.opacity(0.4))
                     .frame(width: 70, alignment: .leading)
 
-                // Merchant
-                Text(expense.merchantName)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                // Merchant and description
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(expense.merchantName)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if !expense.expenseDescription.isEmpty {
+                        Text(expense.expenseDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
 
                 Spacer()
 

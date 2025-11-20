@@ -8,6 +8,11 @@ struct ExpenseListView: View {
 
     @State private var searchText = ""
     @State private var selectedCategory: ExpenseCategory? = nil
+    @State private var selectedExpense: Expense?
+    @State private var showingDetailView = false
+    @State private var isEditMode = false
+    @State private var selectedExpenses: Set<UUID> = []
+    @State private var showDeleteConfirmation = false
 
     var filteredExpenses: [Expense] {
         expenses.filter { expense in
@@ -21,12 +26,27 @@ struct ExpenseListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Subtitle
-            Text("\(filteredExpenses.count) entries")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(.secondary.opacity(0.6))
-                .padding(.horizontal)
-                .padding(.top, 16)
+            // Header with count and edit button
+            HStack {
+                Text("\(filteredExpenses.count) entries")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(.secondary.opacity(0.6))
+
+                Spacer()
+
+                Button(isEditMode ? "Done" : "Edit") {
+                    withAnimation {
+                        isEditMode.toggle()
+                        if !isEditMode {
+                            selectedExpenses.removeAll()
+                        }
+                    }
+                }
+                .font(.body)
+                .fontWeight(.medium)
+            }
+            .padding(.horizontal)
+            .padding(.top, 16)
 
             // Category filters - minimalist text buttons
             ScrollView(.horizontal, showsIndicators: false) {
@@ -70,12 +90,117 @@ struct ExpenseListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(filteredExpenses) { expense in
-                        ExpenseRow(expense: expense, showYen: showYen)
+                        HStack(spacing: 12) {
+                            if isEditMode {
+                                Button {
+                                    toggleSelection(expense)
+                                } label: {
+                                    Image(systemName: selectedExpenses.contains(expense.id) ? "checkmark.circle.fill" : "circle")
+                                        .font(.title2)
+                                        .foregroundStyle(selectedExpenses.contains(expense.id) ? .blue : .secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            ExpenseRow(expense: expense, showYen: showYen)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if isEditMode {
+                                toggleSelection(expense)
+                            } else {
+                                selectedExpense = expense
+                                showingDetailView = true
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteSingleExpense(expense)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                         Divider()
-                            .padding(.leading)
+                            .padding(.leading, isEditMode ? 60 : 0)
                     }
                 }
             }
+
+            // Action bar when in edit mode
+            if isEditMode && !selectedExpenses.isEmpty {
+                VStack(spacing: 0) {
+                    Divider()
+
+                    HStack(spacing: 20) {
+                        Button {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                                .foregroundStyle(.red)
+                        }
+
+                        Spacer()
+
+                        Text("\(selectedExpenses.count) selected")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                }
+            }
+        }
+        .sheet(isPresented: $showingDetailView) {
+            if let expense = selectedExpense {
+                ExpenseDetailView(expense: expense)
+            }
+        }
+        .alert("Delete Expenses", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteSelectedExpenses()
+            }
+        } message: {
+            Text("Are you sure you want to delete \(selectedExpenses.count) expense(s)? This action cannot be undone.")
+        }
+    }
+
+    private func toggleSelection(_ expense: Expense) {
+        if selectedExpenses.contains(expense.id) {
+            selectedExpenses.remove(expense.id)
+        } else {
+            selectedExpenses.insert(expense.id)
+        }
+    }
+
+    private func deleteSelectedExpenses() {
+        // Find and delete expenses with selected IDs
+        let expensesToDelete = expenses.filter { selectedExpenses.contains($0.id) }
+        for expense in expensesToDelete {
+            modelContext.delete(expense)
+        }
+
+        // Clear selection and exit edit mode
+        selectedExpenses.removeAll()
+        isEditMode = false
+
+        // Save context
+        do {
+            try modelContext.save()
+            print("💾 Deleted \(expensesToDelete.count) expense(s)")
+        } catch {
+            print("❌ Error deleting expenses: \(error)")
+        }
+    }
+
+    private func deleteSingleExpense(_ expense: Expense) {
+        modelContext.delete(expense)
+
+        do {
+            try modelContext.save()
+            print("💾 Deleted expense: \(expense.merchantName)")
+        } catch {
+            print("❌ Error deleting expense: \(error)")
         }
     }
 
@@ -91,19 +216,28 @@ struct ExpenseRow: View {
     let showYen: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
+        HStack(alignment: .top, spacing: 16) {
             // Date in large, light grey
             Text(DateFormatters.shortDate(expense.date))
                 .font(.system(size: 32, weight: .medium))
                 .foregroundStyle(.secondary.opacity(0.4))
                 .frame(width: 80, alignment: .leading)
 
-            // Merchant name
-            Text(expense.merchantName)
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
+            // Merchant name and description
+            VStack(alignment: .leading, spacing: 4) {
+                Text(expense.merchantName)
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                if !expense.expenseDescription.isEmpty {
+                    Text(expense.expenseDescription)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
 
             Spacer()
 
