@@ -1,8 +1,10 @@
 # V1 → V2 Backend Integration Migration Plan
 
 **Created:** 2025-01-16
-**Status:** Ready to Execute
-**Context:** Migrate proven receipt parsing backend from V1 (TokyoExpenseTracking) into V2's redesigned UI (TokyoExpenseTracking_02)
+**Status:** ⚠️ **HISTORICAL REFERENCE ONLY** - Project transitioned to Claude API instead
+**Context:** This plan was created to migrate proven receipt parsing backend from V1 (TokyoExpenseTracking) into V2's redesigned UI (TokyoExpenseTracking_02)
+
+> **Note:** The project has evolved beyond this migration plan. We transitioned from the hybrid on-device parser approach (Vision Framework + Foundation Models) to using the **Claude API** for receipt parsing. This document is preserved for historical reference and technical learning. See [JOURNEY.md](JOURNEY.md) for the full development story and [README.md](README.md) for current status.
 
 ---
 
