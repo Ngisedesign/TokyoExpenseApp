@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct ExpenseDetailView: View {
     @Environment(\.dismiss) var dismiss
@@ -12,8 +13,12 @@ struct ExpenseDetailView: View {
     @State private var date: Date
     @State private var category: ExpenseCategory
     @State private var amountYen: String
-    @State private var showingImageViewer = false
-    @State private var selectedImagePath: String?
+    @State private var showReplaceOptions = false
+    @State private var showCamera = false
+    @State private var showLibraryPicker = false
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var capturedImage: UIImage? = nil
+    @State private var imageToReplacePath: String? = nil
 
     init(expense: Expense) {
         self.expense = expense
@@ -38,15 +43,15 @@ struct ExpenseDetailView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
                                     ForEach(expense.receiptImagePaths, id: \.self) { imagePath in
-                                        if let image = ImageManager.shared.loadImage(filename: imagePath) {
+                                        if let image = ImageManager.shared.loadImage(imagePath) {
                                             Image(uiImage: image)
                                                 .resizable()
                                                 .scaledToFill()
                                                 .frame(width: 120, height: 120)
                                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                                 .onTapGesture {
-                                                    selectedImagePath = imagePath
-                                                    showingImageViewer = true
+                                                    imageToReplacePath = imagePath
+                                                    showReplaceOptions = true
                                                 }
                                         }
                                     }
@@ -194,10 +199,22 @@ struct ExpenseDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingImageViewer) {
-            if let imagePath = selectedImagePath,
-               let image = ImageManager.shared.loadImage(filename: imagePath) {
-                ImageViewerSheet(image: image)
+        .confirmationDialog("Replace receipt image", isPresented: $showReplaceOptions, titleVisibility: .visible) {
+            Button("Choose from Library") { showLibraryPicker = true }
+            Button("Take Photo") { showCamera = true }
+            Button("Cancel", role: .cancel) { }
+        }
+        .photosPicker(isPresented: $showLibraryPicker, selection: $selectedItem, matching: .images)
+        .sheet(isPresented: $showCamera) {
+            ImagePickerController(image: $capturedImage, sourceType: .camera)
+        }
+        .onChange(of: selectedItem) { oldValue, newValue in
+            Task { await loadImage(from: newValue) }
+        }
+        .onChange(of: capturedImage) { oldValue, newValue in
+            if let image = newValue {
+                replaceReceiptImage(with: image)
+                capturedImage = nil
             }
         }
     }
@@ -228,6 +245,48 @@ struct ExpenseDetailView: View {
             print("💾 Expense updated successfully")
         } catch {
             print("❌ Error saving expense: \(error)")
+        }
+    }
+
+    private func replaceReceiptImage(with newImage: UIImage) {
+        guard let newFilename = ImageManager.shared.saveImage(newImage) else {
+            print("❌ Failed to save new receipt image")
+            return
+        }
+
+        if let oldPath = imageToReplacePath,
+           let index = expense.receiptImagePaths.firstIndex(of: oldPath) {
+            // Delete old image file and replace path
+            ImageManager.shared.deleteImage(oldPath)
+            expense.receiptImagePaths[index] = newFilename
+        } else {
+            // If no specific image selected, append
+            expense.receiptImagePaths.append(newFilename)
+        }
+
+        do {
+            try modelContext.save()
+            print("💾 Receipt image updated")
+        } catch {
+            print("❌ Error saving updated receipt image: \(error)")
+        }
+
+        // Reset selection state
+        imageToReplacePath = nil
+    }
+
+    private func loadImage(from item: PhotosPickerItem?) async {
+        guard let item = item else { return }
+        do {
+            if let data = try await item.loadTransferable(type: Data.self),
+               let uiImage = UIImage(data: data) {
+                await MainActor.run {
+                    replaceReceiptImage(with: uiImage)
+                    selectedItem = nil
+                }
+            }
+        } catch {
+            print("❌ Failed to load image from photo library: \(error)")
         }
     }
 }
