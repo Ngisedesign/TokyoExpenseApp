@@ -69,7 +69,7 @@ struct ReportView: View {
     // MARK: - Category Section
 
     private func categorySection(category: ExpenseCategory, expenses: [Expense]) -> some View {
-        let categoryTotal = expenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
+        let categoryTotalUSD = expenses.reduce(Decimal(0)) { $0 + $1.amountUSD }
 
         return VStack(alignment: .leading, spacing: 16) {
             // Category Header
@@ -78,7 +78,7 @@ struct ReportView: View {
                     .font(.system(size: 36, weight: .black))
                     .foregroundStyle(.primary)
                 Spacer()
-                Text(CurrencyFormatter.format(usd: categoryTotal / 150, showYen: showYen))
+                Text(CurrencyFormatter.format(usd: categoryTotalUSD, showYen: showYen))
                     .font(.title2)
                     .fontWeight(.semibold)
             }
@@ -180,8 +180,8 @@ struct ReportView: View {
     // MARK: - Grand Total Section
 
     private var grandTotalSection: some View {
-        let grandTotal = filteredExpenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
-        let remaining = BudgetTracker.totalBudget - (grandTotal / 150)
+        let grandTotalUSD = filteredExpenses.reduce(Decimal(0)) { $0 + $1.amountUSD }
+        let remaining = BudgetTracker.totalBudget - grandTotalUSD
 
         return VStack(alignment: .leading, spacing: 20) {
             Divider()
@@ -193,7 +193,7 @@ struct ReportView: View {
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 6) {
-                    Text(CurrencyFormatter.format(usd: grandTotal / 150, showYen: showYen))
+                    Text(CurrencyFormatter.format(usd: grandTotalUSD, showYen: showYen))
                         .font(.title)
                     Text("of")
                         .font(.title)

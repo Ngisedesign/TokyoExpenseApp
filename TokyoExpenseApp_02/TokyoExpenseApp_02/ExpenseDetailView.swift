@@ -343,12 +343,12 @@ struct ImageViewerSheet: View {
 #Preview {
     let expense = Expense(
         date: Date(),
-        category: "Food/Per Diem",
+        category: "Food",
         merchantName: "Test Merchant",
         expenseDescription: "Lunch",
         amountJPY: 1500,
         amountUSD: 10,
-        exchangeRate: 150,
+        exchangeRate: BudgetTracker.defaultExchangeRate,
         isWorkDay: true
     )
 

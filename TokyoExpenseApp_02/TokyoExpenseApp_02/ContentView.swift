@@ -385,22 +385,36 @@ struct ContentView: View {
         // Save image
         guard let imagePath = ImageManager.shared.saveImage(image) else { return }
 
-        // Create expense
+        // Determine amounts and date
         let amountJPY = parsedReceipt?.totalAmountYen ?? Decimal(0)
-        let exchangeRate: Decimal = 150
         let expenseDate = parsedReceipt?.date ?? Date()
+
+        // Fetch exchange rate for the expense date; fall back only if fetch fails
+        var exchangeRate: Decimal = BudgetTracker.defaultExchangeRate
+        var needsUpdate = false
+        if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: expenseDate) {
+            exchangeRate = fetchedRate
+            print("✅ Successfully fetched exchange rate for quick capture: \(fetchedRate)")
+        } else {
+            print("⚠️ Failed to fetch exchange rate for quick capture, using default: \(BudgetTracker.defaultExchangeRate)")
+            needsUpdate = true
+        }
+
+        let amountUSD = amountJPY / exchangeRate
+
         let expense = Expense(
             date: expenseDate,
             category: parsedReceipt?.category ?? "Other",
             merchantName: parsedReceipt?.merchantName ?? "Quick Capture",
             expenseDescription: "",
             amountJPY: amountJPY,
-            amountUSD: amountJPY / exchangeRate,
+            amountUSD: amountUSD,
             exchangeRate: exchangeRate,
             receiptImagePaths: [imagePath],
             isWorkDay: BudgetTracker.isWorkDay(expenseDate),
             isManualEntry: false,
-            ocrConfidence: parsedReceipt?.confidence
+            ocrConfidence: parsedReceipt?.confidence,
+            needsExchangeRateUpdate: needsUpdate
         )
 
         await MainActor.run {

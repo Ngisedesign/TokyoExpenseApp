@@ -4,12 +4,6 @@ import Foundation
 /// Handles USD/JPY conversion and formatting with consistent display across all views
 enum CurrencyFormatter {
 
-    // MARK: - Default Exchange Rate
-
-    /// Default exchange rate: 1 USD = 150 JPY
-    /// Used as fallback when actual exchange rate is not available
-    static let defaultExchangeRate: Decimal = 150
-
     // MARK: - Number Formatters
 
     private static let usdFormatter: NumberFormatter = {
@@ -44,7 +38,7 @@ enum CurrencyFormatter {
     /// - Parameters:
     ///   - usdAmount: Amount in USD
     ///   - showYen: Whether to display in Yen (true) or USD (false)
-    ///   - exchangeRate: Optional exchange rate to use (defaults to 150)
+    ///   - exchangeRate: Optional exchange rate to use (defaults to BudgetTracker.defaultExchangeRate)
     ///   - includeDecimals: Whether to show decimal places (only applies to USD)
     /// - Returns: Formatted currency string (e.g., "¥15,000" or "$100.00")
     static func format(
@@ -54,7 +48,7 @@ enum CurrencyFormatter {
         includeDecimals: Bool = true
     ) -> String {
         if showYen {
-            let rate = exchangeRate ?? defaultExchangeRate
+            let rate = exchangeRate ?? BudgetTracker.defaultExchangeRate
             let yenAmount = usdAmount * rate
             return "¥" + (yenFormatter.string(from: yenAmount as NSNumber) ?? "0")
         } else {
@@ -67,7 +61,7 @@ enum CurrencyFormatter {
     /// - Parameters:
     ///   - yenAmount: Amount in JPY
     ///   - showYen: Whether to display in Yen (true) or USD (false)
-    ///   - exchangeRate: Optional exchange rate to use (defaults to 150)
+    ///   - exchangeRate: Optional exchange rate to use (defaults to BudgetTracker.defaultExchangeRate)
     ///   - includeDecimals: Whether to show decimal places (only applies to USD)
     /// - Returns: Formatted currency string (e.g., "¥15,000" or "$100.00")
     static func format(
@@ -79,7 +73,7 @@ enum CurrencyFormatter {
         if showYen {
             return "¥" + (yenFormatter.string(from: yenAmount as NSNumber) ?? "0")
         } else {
-            let rate = exchangeRate ?? defaultExchangeRate
+            let rate = exchangeRate ?? BudgetTracker.defaultExchangeRate
             let usdAmount = yenAmount / rate
             let formatter = includeDecimals ? usdFormatter : usdNoDecimalsFormatter
             return formatter.string(from: usdAmount as NSNumber) ?? "$0.00"
@@ -89,20 +83,21 @@ enum CurrencyFormatter {
     /// Converts JPY to USD using the specified exchange rate
     /// - Parameters:
     ///   - yenAmount: Amount in JPY
-    ///   - exchangeRate: Exchange rate to use (defaults to 150)
+    ///   - exchangeRate: Exchange rate to use (defaults to BudgetTracker.defaultExchangeRate)
     /// - Returns: Amount in USD
     static func convertToUSD(yen yenAmount: Decimal, exchangeRate: Decimal? = nil) -> Decimal {
-        let rate = exchangeRate ?? defaultExchangeRate
+        let rate = exchangeRate ?? BudgetTracker.defaultExchangeRate
         return yenAmount / rate
     }
 
     /// Converts USD to JPY using the specified exchange rate
     /// - Parameters:
     ///   - usdAmount: Amount in USD
-    ///   - exchangeRate: Exchange rate to use (defaults to 150)
+    ///   - exchangeRate: Exchange rate to use (defaults to BudgetTracker.defaultExchangeRate)
     /// - Returns: Amount in JPY
     static func convertToYen(usd usdAmount: Decimal, exchangeRate: Decimal? = nil) -> Decimal {
-        let rate = exchangeRate ?? defaultExchangeRate
+        let rate = exchangeRate ?? BudgetTracker.defaultExchangeRate
         return usdAmount * rate
     }
 }
+

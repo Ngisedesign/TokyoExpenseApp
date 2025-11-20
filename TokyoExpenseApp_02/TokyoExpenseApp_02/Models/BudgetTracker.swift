@@ -34,7 +34,7 @@ struct BudgetTracker {
     // MARK: - Budget Categories
 
     enum BudgetCategory: String, CaseIterable {
-        case perDiem = "Food/Per Diem"
+        case perDiem = "Food"
         case transport = "Transport"
         case flight = "Flight"
         case hotel = "Hotel"
@@ -72,7 +72,7 @@ struct BudgetTracker {
     /// Calculate total spent across all expenses
     static func totalSpent(from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
         let filteredExpenses = includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
-        return filteredExpenses.reduce(0) { $0 + $1.amountJPY } / 150 // Convert to USD
+        return filteredExpenses.reduce(0) { $0 + $1.amountUSD }
     }
 
     /// Calculate spent per category
@@ -82,7 +82,7 @@ struct BudgetTracker {
         let categoryExpenses: [Expense]
         switch category {
         case .perDiem:
-            categoryExpenses = filteredExpenses.filter { $0.category == "Food/Per Diem" }
+            categoryExpenses = filteredExpenses.filter { $0.category == ExpenseCategory.food.rawValue }
         case .transport:
             categoryExpenses = filteredExpenses.filter { $0.category == "Transport" }
         case .flight:
@@ -91,7 +91,7 @@ struct BudgetTracker {
             categoryExpenses = filteredExpenses.filter { $0.merchantName.lowercased().contains("hotel") || $0.merchantName.lowercased().contains("inn") }
         }
 
-        return categoryExpenses.reduce(0) { $0 + $1.amountJPY } / 150 // Convert to USD
+        return categoryExpenses.reduce(0) { $0 + $1.amountUSD }
     }
 
     /// Calculate daily per diem spending for work days
@@ -100,12 +100,12 @@ struct BudgetTracker {
 
         let calendar = Calendar.current
         let workDayExpenses = expenses.filter {
-            $0.isWorkDay && $0.category == "Food/Per Diem"
+            $0.isWorkDay && $0.category == ExpenseCategory.food.rawValue
         }
 
         for expense in workDayExpenses {
             let dayStart = calendar.startOfDay(for: expense.date)
-            dailySpending[dayStart, default: 0] += expense.amountJPY / 150 // Convert to USD
+            dailySpending[dayStart, default: 0] += expense.amountUSD
         }
 
         return dailySpending
@@ -122,7 +122,7 @@ struct BudgetTracker {
 
         for expense in workDayExpenses {
             let dayStart = calendar.startOfDay(for: expense.date)
-            dailySpending[dayStart, default: 0] += expense.amountJPY / 150 // Convert to USD
+            dailySpending[dayStart, default: 0] += expense.amountUSD
         }
 
         return dailySpending
@@ -183,7 +183,7 @@ struct BudgetTracker {
         switch category {
         case .perDiem:
             categoryExpenses = expenses.filter {
-                $0.category == "Food/Per Diem" &&
+                $0.category == ExpenseCategory.food.rawValue &&
                 calendar.startOfDay(for: $0.date) == today
             }
         case .transport:
@@ -195,7 +195,7 @@ struct BudgetTracker {
             return 0
         }
 
-        return categoryExpenses.reduce(0) { $0 + $1.amountJPY } / 150
+        return categoryExpenses.reduce(0) { $0 + $1.amountUSD }
     }
 
     /// Calculate rollover from previous work days
@@ -216,7 +216,7 @@ struct BudgetTracker {
         switch category {
         case .perDiem:
             categoryExpenses = expenses.filter { expense in
-                expense.category == "Food/Per Diem" &&
+                expense.category == ExpenseCategory.food.rawValue &&
                 previousDays.contains { previousDay in
                     calendar.startOfDay(for: previousDay) == calendar.startOfDay(for: expense.date)
                 }
@@ -232,7 +232,7 @@ struct BudgetTracker {
             return 0
         }
 
-        let totalSpent = categoryExpenses.reduce(0) { $0 + $1.amountJPY } / 150
+        let totalSpent = categoryExpenses.reduce(0) { $0 + $1.amountUSD }
         return totalAllotted - totalSpent
     }
 }
