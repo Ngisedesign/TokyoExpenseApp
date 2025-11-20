@@ -29,59 +29,77 @@ struct TotalBudgetBar: View {
             let width = geo.size.width
             let height: CGFloat = 44
 
-            let foodProgress = Double(truncating: ((foodSpent / total) as NSNumber))
-            let transportProgress = Double(truncating: ((transportSpent / total) as NSNumber))
-            let totalProgress = foodProgress + transportProgress
+            // Calculate budget amounts
+            let foodBudget = BudgetTracker.BudgetCategory.perDiem.budget
+            let transportBudget = BudgetTracker.BudgetCategory.transport.budget
 
             // Calculate overflow
-            let isOverBudget = totalProgress > 1.0
-            let overflowAmount = max(0.0, totalProgress - 1.0)
+            let foodOverflow = max(0, foodSpent - foodBudget)
+            let transportOverflow = max(0, transportSpent - transportBudget)
+            let foodIsOver = foodSpent > foodBudget
+            let transportIsOver = transportSpent > transportBudget
 
-            let clampedFood = max(0.0, min(foodProgress, 1.0))
-            let remainingCapacity = max(0.0, 1.0 - clampedFood)
-            let clampedTransport = max(0.0, min(transportProgress, remainingCapacity))
+            // Calculate widths as proportion of total budget
+            // Normal portions (within budget)
+            let foodBudgetWidth = width * CGFloat(Double(truncating: (min(foodSpent, foodBudget) / total) as NSNumber))
+            let transportBudgetWidth = width * CGFloat(Double(truncating: (min(transportSpent, transportBudget) / total) as NSNumber))
 
-            let foodWidth = width * CGFloat(clampedFood)
-            let transportWidth = width * CGFloat(clampedTransport)
+            // Overflow portions (darker)
+            let foodOverflowWidth = width * CGFloat(Double(truncating: (foodOverflow / total) as NSNumber))
+            let transportOverflowWidth = width * CGFloat(Double(truncating: (transportOverflow / total) as NSNumber))
 
-            let foodCenterX = max(14, min(foodWidth / 2, width - 14))
-            let transportCenterX = max(14, min(foodWidth + transportWidth / 2, width - 14))
+            // Calculate offsets
+            let transportStart = foodBudgetWidth + foodOverflowWidth
+            let transportOverflowStart = transportStart + transportBudgetWidth
+
+            // Icon positions (center of normal portion only)
+            let foodCenterX = max(14, min(foodBudgetWidth / 2, width - 14))
+            let transportCenterX = max(14, min(transportStart + transportBudgetWidth / 2, width - 14))
 
             ZStack(alignment: .leading) {
-                // Background bar
+                // Background bar (rounded container)
                 RoundedRectangle(cornerRadius: height / 2, style: .continuous)
                     .fill(.primary.opacity(0.08))
 
-                // Food fill
-                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-                    .fill(BudgetTracker.BudgetCategory.perDiem.color)
-                    .frame(width: foodWidth)
+                // Inner fills with flat edges
+                ZStack(alignment: .leading) {
+                    // Food budget portion (normal color)
+                    Rectangle()
+                        .fill(BudgetTracker.BudgetCategory.perDiem.color)
+                        .frame(width: foodBudgetWidth)
 
-                // Transport fill
-                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-                    .fill(BudgetTracker.BudgetCategory.transport.color)
-                    .frame(width: transportWidth)
-                    .offset(x: foodWidth)
+                    // Food overflow portion (darker)
+                    if foodIsOver {
+                        Rectangle()
+                            .fill(BudgetTracker.BudgetCategory.perDiem.color.opacity(0.5))
+                            .frame(width: foodOverflowWidth)
+                            .offset(x: foodBudgetWidth)
+                    }
 
-                // Dark overlay for over-budget portion
-                if isOverBudget {
-                    let overflowWidth = width * CGFloat(overflowAmount)
-                    let overlayStart = width - overflowWidth
+                    // Transport budget portion (normal color)
+                    Rectangle()
+                        .fill(BudgetTracker.BudgetCategory.transport.color)
+                        .frame(width: transportBudgetWidth)
+                        .offset(x: transportStart)
 
-                    RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-                        .fill(.black.opacity(0.35))
-                        .frame(width: overflowWidth)
-                        .offset(x: overlayStart)
+                    // Transport overflow portion (darker)
+                    if transportIsOver {
+                        Rectangle()
+                            .fill(BudgetTracker.BudgetCategory.transport.color.opacity(0.5))
+                            .frame(width: transportOverflowWidth)
+                            .offset(x: transportOverflowStart)
+                    }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: height / 2, style: .continuous))
 
                 // Icons over segments (hide if too small)
-                if foodWidth > 24 {
+                if foodBudgetWidth > 24 {
                     Image(systemName: BudgetTracker.BudgetCategory.perDiem.icon)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white.opacity(0.95))
                         .position(x: foodCenterX, y: height / 2)
                 }
-                if transportWidth > 24 {
+                if transportBudgetWidth > 24 {
                     Image(systemName: BudgetTracker.BudgetCategory.transport.icon)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white.opacity(0.95))
