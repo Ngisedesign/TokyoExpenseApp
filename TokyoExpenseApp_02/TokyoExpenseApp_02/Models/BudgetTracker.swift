@@ -14,6 +14,10 @@ struct BudgetTracker {
     static let hotelNightly: Decimal = 345
     static let hotelNights: Int = 5
 
+    /// Default exchange rate: 1 USD = 150 JPY
+    /// Used as fallback when actual exchange rate is not available
+    static let defaultExchangeRate: Decimal = 150
+
     static let workDayStart = Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 1))!
     static let workDayEnd = Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 5, hour: 23, minute: 59))!
 

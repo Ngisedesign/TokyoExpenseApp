@@ -17,6 +17,7 @@ final class Expense {
     var isArchived: Bool?
     var ocrConfidence: Float?
     var notes: String?
+    var needsExchangeRateUpdate: Bool?
 
     init(
         id: UUID = UUID(),
@@ -32,7 +33,8 @@ final class Expense {
         isManualEntry: Bool = true,
         isArchived: Bool? = false,
         ocrConfidence: Float? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        needsExchangeRateUpdate: Bool? = false
     ) {
         self.id = id
         self.date = date
@@ -48,6 +50,7 @@ final class Expense {
         self.isArchived = isArchived
         self.ocrConfidence = ocrConfidence
         self.notes = notes
+        self.needsExchangeRateUpdate = needsExchangeRateUpdate
     }
 
     var isIncomplete: Bool {

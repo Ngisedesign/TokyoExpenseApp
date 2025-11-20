@@ -98,7 +98,7 @@ struct BudgetView: View {
                     Text("Total Budget")
                         .font(.headline)
                         .foregroundStyle(.secondary)
-                    Text(formatAmount(BudgetTracker.totalBudget))
+                    Text(CurrencyFormatter.format(usd: BudgetTracker.totalBudget, showYen: showYen))
                         .font(.system(size: 32, weight: .bold))
                 }
                 Spacer()
@@ -124,7 +124,7 @@ struct BudgetView: View {
                     Text("Spent")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(formatAmount(spent))
+                    Text(CurrencyFormatter.format(usd: spent, showYen: showYen))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
@@ -133,7 +133,7 @@ struct BudgetView: View {
                     Text("Remaining")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(formatAmount(remaining))
+                    Text(CurrencyFormatter.format(usd: remaining, showYen: showYen))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(remaining < 0 ? .red : .green)
@@ -167,7 +167,7 @@ struct BudgetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(category.rawValue)
                         .font(.headline)
-                    Text(formatAmount(budget))
+                    Text(CurrencyFormatter.format(usd: budget, showYen: showYen))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -175,7 +175,7 @@ struct BudgetView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(formatAmount(spent))
+                    Text(CurrencyFormatter.format(usd: spent, showYen: showYen))
                         .font(.title3)
                         .fontWeight(.bold)
                     Text("\(Int(progress * 100))%")
@@ -197,11 +197,11 @@ struct BudgetView: View {
             .frame(height: 8)
 
             if remaining < 0 {
-                Text("⚠️ Over budget by \(formatAmount(abs(remaining)))")
+                Text("⚠️ Over budget by \(CurrencyFormatter.format(usd: abs(remaining), showYen: showYen))")
                     .font(.caption)
                     .foregroundStyle(.red)
             } else {
-                Text("\(formatAmount(remaining)) remaining")
+                Text("\(CurrencyFormatter.format(usd: remaining, showYen: showYen)) remaining")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -240,7 +240,7 @@ struct BudgetView: View {
                 Text(day, style: .date)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text(dayOfWeek(day))
+                Text(DateFormatters.dayOfWeek(day))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -248,10 +248,10 @@ struct BudgetView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(formatAmount(spent))
+                Text(CurrencyFormatter.format(usd: spent, showYen: showYen))
                     .font(.headline)
                     .foregroundStyle(BudgetTracker.statusColor(for: progress))
-                Text("/ \(formatAmount(BudgetTracker.perDiemDaily))")
+                Text("/ \(CurrencyFormatter.format(usd: BudgetTracker.perDiemDaily, showYen: showYen))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -267,29 +267,6 @@ struct BudgetView: View {
         )
     }
 
-    // MARK: - Helper Functions
-
-    private func formatAmount(_ amount: Decimal) -> String {
-        if showYen {
-            let yenAmount = amount * 150
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumFractionDigits = 0
-            return "¥" + (formatter.string(from: yenAmount as NSNumber) ?? "0")
-        } else {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .currency
-            formatter.currencyCode = "USD"
-            formatter.maximumFractionDigits = 2
-            return formatter.string(from: amount as NSNumber) ?? "$0.00"
-        }
-    }
-
-    private func dayOfWeek(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        return formatter.string(from: date)
-    }
 }
 
 #Preview {
