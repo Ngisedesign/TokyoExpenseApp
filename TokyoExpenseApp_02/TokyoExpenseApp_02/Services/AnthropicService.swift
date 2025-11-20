@@ -109,12 +109,27 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
    - "Transport": Taxis, trains, buses, subway, ride-shares
    - "Other": Everything else
 
+5. **Description** (generate simple, natural description):
+   - Infer from receipt items, merchant type, and timestamp
+   - Simple categories: "Breakfast", "Lunch", "Dinner", "Snack", "Coffee", "Groceries", "Taxi", "Train", "Subway", "Convenience Store", etc.
+   - Use time of day to help infer meal type if applicable
+   - Keep it SHORT (1-2 words max)
+   - Examples:
+     * Morning convenience store → "Breakfast"
+     * Afternoon restaurant → "Lunch"
+     * Evening izakaya → "Dinner"
+     * Coffee shop → "Coffee"
+     * Taxi receipt → "Taxi"
+     * Train station → "Train"
+   - If unclear from context, use generic: "Purchase", "Meal", "Transport"
+
 **IMPORTANT:**
 - merchant: ALWAYS provide a name (real or whimsical placeholder)
 - merchant_is_real: true if actual merchant name found, false if you invented a whimsical placeholder
 - If date is missing, set to null (don't guess)
 - ALWAYS extract the amount if visible
 - Set confidence based on clarity (0.0-1.0)
+- description: Provide a simple, concise description (1-2 words)
 
 **CRITICAL: Return ONLY the JSON object below. No markdown, no explanations, no commentary.**
 
@@ -124,6 +139,7 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
   "amount": 1234,
   "date": "2024-11-18 or null",
   "category": "Food/Per Diem",
+  "description": "Lunch",
   "confidence": 0.85
 }
 """
@@ -191,6 +207,7 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
         print("   Amount: \(receiptData.amount?.description ?? "nil")")
         print("   Date: \(receiptData.date ?? "nil")")
         print("   Category: \(receiptData.category ?? "nil")")
+        print("   Description: \(receiptData.description ?? "nil")")
         print("   Confidence: \(receiptData.confidence?.description ?? "nil")")
 
         // Convert to ParsedReceipt
@@ -213,7 +230,8 @@ You are a receipt parsing expert specializing in Japanese receipts. Extract ALL 
             lineItems: [],
             confidence: receiptData.confidence ?? 0.8,
             isUberReceipt: finalMerchantName?.lowercased().contains("uber") ?? false,
-            suggestedCategory: receiptData.category
+            suggestedCategory: receiptData.category,
+            expenseDescription: receiptData.description
         )
     }
 
@@ -358,6 +376,7 @@ struct ReceiptJSON: Codable {
     let date: String?
     let category: String?
     let confidence: Float?
+    let description: String?
 
     enum CodingKeys: String, CodingKey {
         case merchant
@@ -366,6 +385,7 @@ struct ReceiptJSON: Codable {
         case date
         case category
         case confidence
+        case description
     }
 }
 

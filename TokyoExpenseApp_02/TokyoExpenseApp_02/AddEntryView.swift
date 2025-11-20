@@ -7,6 +7,7 @@ struct AddEntryView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var merchant: String = ""
+    @State private var expenseDescription: String = ""
     @State private var date: Date = .now
     @State private var amountYen: String = ""
     @State private var selectedItem: PhotosPickerItem? = nil
@@ -20,6 +21,7 @@ struct AddEntryView: View {
     @State private var ocrConfidence: Float? = nil
     @State private var ocrError: String? = nil
     @State private var merchantIsPlaceholder: Bool = false
+    @State private var descriptionIsAIGenerated: Bool = false
     @State private var showBugDialog: Bool = false
     @State private var bugOffset: CGFloat = 500 // Start off-screen
     @State private var bugWiggle: Bool = false
@@ -157,6 +159,41 @@ struct AddEntryView: View {
                                     .foregroundStyle(.red)
                                     .padding(.leading, 4)
                             }
+                        }
+                    }
+
+                    // Description
+                    LabeledField(label: "Description") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                TextField("What was this for?", text: $expenseDescription)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .onChange(of: expenseDescription) { _, _ in
+                                        // User is editing - no longer AI-generated
+                                        if descriptionIsAIGenerated {
+                                            descriptionIsAIGenerated = false
+                                        }
+                                    }
+
+                                if descriptionIsAIGenerated {
+                                    Text("AI")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(
+                                            Capsule()
+                                                .fill(.blue)
+                                        )
+                                }
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(.black.opacity(0.03))
+                            )
                         }
                     }
 
@@ -344,6 +381,13 @@ struct AddEntryView: View {
                     fieldsFound.append("category")
                 }
 
+                if let description = parsed.expenseDescription {
+                    expenseDescription = description
+                    descriptionIsAIGenerated = true
+                    fieldsFound.append("description")
+                    print("💬 AI generated description: '\(description)'")
+                }
+
                 ocrConfidence = parsed.confidence
 
                 // Clear any previous errors on successful parse
@@ -397,7 +441,7 @@ struct AddEntryView: View {
             date: date,
             category: category.rawValue,
             merchantName: merchant.isEmpty ? "Untitled" : merchant,
-            expenseDescription: "",
+            expenseDescription: expenseDescription,
             amountJPY: amountJPY,
             amountUSD: amountUSD,
             exchangeRate: exchangeRate,
