@@ -71,7 +71,7 @@ struct ReportView: View {
                     .font(.system(size: 36, weight: .black))
                     .foregroundStyle(.primary)
                 Spacer()
-                Text(formatAmount(categoryTotal / 150))
+                Text(CurrencyFormatter.format(usd: categoryTotal / 150, showYen: showYen))
                     .font(.title2)
                     .fontWeight(.semibold)
             }
@@ -91,15 +91,9 @@ struct ReportView: View {
     // MARK: - Expense Row
 
     private func expenseRow(_ expense: Expense) -> some View {
-        let shortDate: String = {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: expense.date)
-        }()
-
         return HStack(alignment: .firstTextBaseline, spacing: 16) {
             // Date in large, light grey
-            Text(shortDate)
+            Text(DateFormatters.shortDate(expense.date))
                 .font(.system(size: 24, weight: .medium))
                 .foregroundStyle(.secondary.opacity(0.4))
                 .frame(width: 70, alignment: .leading)
@@ -114,7 +108,7 @@ struct ReportView: View {
             Spacer()
 
             // Amount
-            Text(formatAmount(expense.amountJPY / 150))
+            Text(CurrencyFormatter.format(usd: expense.amountUSD, showYen: showYen))
                 .font(.body)
                 .fontWeight(.medium)
         }
@@ -139,17 +133,17 @@ struct ReportView: View {
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 6) {
-                    Text(formatAmount(grandTotal / 150))
+                    Text(CurrencyFormatter.format(usd: grandTotal / 150, showYen: showYen))
                         .font(.title)
                     Text("of")
                         .font(.title)
                         .foregroundStyle(.secondary.opacity(0.5))
-                    Text(formatAmount(BudgetTracker.totalBudget))
+                    Text(CurrencyFormatter.format(usd: BudgetTracker.totalBudget, showYen: showYen))
                         .font(.title)
                 }
 
                 HStack(spacing: 0) {
-                    Text(formatAmount(remaining))
+                    Text(CurrencyFormatter.format(usd: remaining, showYen: showYen))
                         .font(.title2)
                         .foregroundStyle(remaining >= 0 ? Color(hue: 0.33, saturation: 0.70, brightness: 0.55) : Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
                     Text(" remaining")
@@ -161,23 +155,6 @@ struct ReportView: View {
         }
     }
 
-    // MARK: - Helper Functions
-
-    private func formatAmount(_ amount: Decimal) -> String {
-        if showYen {
-            let yenAmount = amount * 150
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumFractionDigits = 0
-            return "¥" + (formatter.string(from: yenAmount as NSNumber) ?? "0")
-        } else {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .currency
-            formatter.currencyCode = "USD"
-            formatter.maximumFractionDigits = 2
-            return formatter.string(from: amount as NSNumber) ?? "$0.00"
-        }
-    }
 }
 
 #Preview {

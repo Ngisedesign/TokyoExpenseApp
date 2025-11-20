@@ -259,15 +259,6 @@ struct ContentView: View {
         BudgetTracker.transportBudget - transportTotalSpent
     }
 
-    // Format amount based on currency toggle
-    private func formatAmount(_ amount: Decimal) -> String {
-        if showYen {
-            let yenAmount = amount * 150
-            return "¥\(yenAmount.intValue)"
-        } else {
-            return "$\(amount.intValue)"
-        }
-    }
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -293,18 +284,18 @@ struct ContentView: View {
                 MaskedTextImage(text: "Food", imageName: "sushi", font: .system(size: 72, weight: .black), scrimOpacity: 0.3)
                 HStack {
                     HStack(spacing: 6) {
-                        Text("\(formatAmount(foodSpentToday)) of \(formatAmount(BudgetTracker.perDiemDaily))")
+                        Text("\(CurrencyFormatter.format(usd: foodSpentToday, showYen: showYen, includeDecimals: false)) of \(CurrencyFormatter.format(usd: BudgetTracker.perDiemDaily, showYen: showYen, includeDecimals: false))")
                         if foodRollover > 0 {
-                            Text("+\(formatAmount(foodRollover).dropFirst())")
+                            Text("+\(CurrencyFormatter.format(usd: foodRollover, showYen: showYen, includeDecimals: false).dropFirst())")
                                 .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
                         } else if foodRollover < 0 {
-                            Text(formatAmount(foodRollover))
+                            Text(CurrencyFormatter.format(usd: foodRollover, showYen: showYen, includeDecimals: false))
                                 .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
                         }
                     }
                     Spacer()
                     // Total remaining budget
-                    Text(formatAmount(foodRemainingTotal))
+                    Text(CurrencyFormatter.format(usd: foodRemainingTotal, showYen: showYen, includeDecimals: false))
                         .foregroundStyle(foodRemainingTotal >= 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
                         .padding(.trailing, 5)
                 }
@@ -318,18 +309,18 @@ struct ContentView: View {
                 MaskedTextImage(text: "Transport", imageName: "JRTrain", font: .system(size: 72, weight: .black), scrimOpacity: 0.3)
                 HStack {
                     HStack(spacing: 6) {
-                        Text("\(formatAmount(transportSpentToday)) of \(formatAmount(BudgetTracker.transportDaily))")
+                        Text("\(CurrencyFormatter.format(usd: transportSpentToday, showYen: showYen, includeDecimals: false)) of \(CurrencyFormatter.format(usd: BudgetTracker.transportDaily, showYen: showYen, includeDecimals: false))")
                         if transportRollover > 0 {
-                            Text("+\(formatAmount(transportRollover).dropFirst())")
+                            Text("+\(CurrencyFormatter.format(usd: transportRollover, showYen: showYen, includeDecimals: false).dropFirst())")
                                 .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
                         } else if transportRollover < 0 {
-                            Text(formatAmount(transportRollover))
+                            Text(CurrencyFormatter.format(usd: transportRollover, showYen: showYen, includeDecimals: false))
                                 .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
                         }
                     }
                     Spacer()
                     // Total remaining budget
-                    Text(formatAmount(transportRemainingTotal))
+                    Text(CurrencyFormatter.format(usd: transportRemainingTotal, showYen: showYen, includeDecimals: false))
                         .foregroundStyle(transportRemainingTotal >= 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
                         .padding(.trailing, 5)
                 }

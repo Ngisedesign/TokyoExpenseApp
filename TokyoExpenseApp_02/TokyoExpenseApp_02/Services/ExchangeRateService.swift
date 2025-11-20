@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// Service for fetching exchange rates from frankfurter.app API
 /// Provides USD to JPY conversion rates with caching and offline support
@@ -147,3 +148,4 @@ private struct ExchangeRateResponse: Codable {
     let date: String
     let rates: [String: Decimal]
 }
+

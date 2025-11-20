@@ -90,16 +90,10 @@ struct ExpenseRow: View {
     let expense: Expense
     let showYen: Bool
 
-    private var shortDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: expense.date)
-    }
-
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             // Date in large, light grey
-            Text(shortDate)
+            Text(DateFormatters.shortDate(expense.date))
                 .font(.system(size: 32, weight: .medium))
                 .foregroundStyle(.secondary.opacity(0.4))
                 .frame(width: 80, alignment: .leading)
