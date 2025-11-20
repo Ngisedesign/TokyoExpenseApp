@@ -91,26 +91,66 @@ struct ReportView: View {
     // MARK: - Expense Row
 
     private func expenseRow(_ expense: Expense) -> some View {
-        return HStack(alignment: .firstTextBaseline, spacing: 16) {
-            // Date in large, light grey
-            Text(DateFormatters.shortDate(expense.date))
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(.secondary.opacity(0.4))
-                .frame(width: 70, alignment: .leading)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                // Date in large, light grey
+                Text(DateFormatters.shortDate(expense.date))
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.secondary.opacity(0.4))
+                    .frame(width: 70, alignment: .leading)
 
-            // Merchant
-            Text(expense.merchantName)
-                .font(.body)
-                .fontWeight(.medium)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
+                // Merchant
+                Text(expense.merchantName)
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-            Spacer()
+                Spacer()
 
-            // Amount
-            Text(CurrencyFormatter.format(usd: expense.amountUSD, showYen: showYen))
-                .font(.body)
-                .fontWeight(.medium)
+                // Amount (main display based on toggle)
+                Text(CurrencyFormatter.format(usd: expense.amountUSD, showYen: showYen))
+                    .font(.body)
+                    .fontWeight(.semibold)
+            }
+
+            // Secondary info: JPY, USD, and exchange rate
+            HStack(spacing: 12) {
+                Spacer()
+                    .frame(width: 70) // Align with date column
+
+                // JPY amount
+                Text(CurrencyFormatter.format(yen: expense.amountJPY, showYen: true))
+                    .font(.caption)
+                    .foregroundStyle(.secondary.opacity(0.6))
+
+                Text("→")
+                    .font(.caption)
+                    .foregroundStyle(.secondary.opacity(0.4))
+
+                // USD amount
+                Text(CurrencyFormatter.format(usd: expense.amountUSD, showYen: false))
+                    .font(.caption)
+                    .foregroundStyle(.secondary.opacity(0.6))
+
+                Text("@")
+                    .font(.caption)
+                    .foregroundStyle(.secondary.opacity(0.4))
+
+                // Exchange rate with warning if using fallback
+                HStack(spacing: 4) {
+                    if expense.needsExchangeRateUpdate == true {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.orange)
+                    }
+                    Text(String(format: "%.2f", NSDecimalNumber(decimal: expense.exchangeRate).doubleValue))
+                        .font(.caption)
+                        .foregroundStyle(.secondary.opacity(0.6))
+                }
+
+                Spacer()
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 12)

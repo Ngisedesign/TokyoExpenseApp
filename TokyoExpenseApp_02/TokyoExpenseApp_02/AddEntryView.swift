@@ -36,8 +36,10 @@ struct AddEntryView: View {
                     icon: "checkmark",
                     color: canSave ? .black : .secondary
                 ) {
-                    saveExpense()
-                    dismiss()
+                    Task {
+                        await saveExpense()
+                        dismiss()
+                    }
                 }
                 .disabled(!canSave)
             }
@@ -363,12 +365,23 @@ struct AddEntryView: View {
         }
     }
 
-    private func saveExpense() {
+    private func saveExpense() async {
         // Convert amountYen string to Decimal
         let amountJPY = Decimal(string: amountYen) ?? 0
 
-        // Calculate USD (exchange rate: ¥150 = $1)
-        let exchangeRate: Decimal = 150
+        // Fetch exchange rate for the expense date
+        print("📊 Fetching exchange rate for \(date)...")
+        var exchangeRate: Decimal = BudgetTracker.defaultExchangeRate
+        var needsUpdate = false
+
+        if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: date) {
+            exchangeRate = fetchedRate
+            print("✅ Successfully fetched exchange rate: \(fetchedRate)")
+        } else {
+            print("⚠️ Failed to fetch exchange rate, using default: \(BudgetTracker.defaultExchangeRate)")
+            needsUpdate = true
+        }
+
         let amountUSD = amountJPY / exchangeRate
 
         // Save receipt image
@@ -391,15 +404,17 @@ struct AddEntryView: View {
             receiptImagePaths: imagePaths,
             isWorkDay: BudgetTracker.isWorkDay(date),
             isManualEntry: ocrConfidence == nil,
-            ocrConfidence: ocrConfidence
+            ocrConfidence: ocrConfidence,
+            needsExchangeRateUpdate: needsUpdate
         )
 
         modelContext.insert(expense)
 
         do {
             try modelContext.save()
+            print("💾 Expense saved successfully")
         } catch {
-            print("Error saving expense: \(error)")
+            print("❌ Error saving expense: \(error)")
         }
     }
 
