@@ -5,10 +5,11 @@
 This document explains the technical architecture, design decisions, and framework integration for the Tokyo Expense Tracker receipt parsing system.
 
 **Last Updated:** 2025-01-12 (V1 Complete, V2 Redesign in Progress)
-**iOS Target:** 26.0+
-**macOS Development:** 26.0+ required for Foundation Models
+**Status:** ⚠️ **HISTORICAL REFERENCE ONLY** - Project transitioned to Claude API
 
-**V1 Outcome:** HybridParser successfully solved all receipt parsing challenges. V2 will simplify to 2 parsers (Hybrid + Spatial fallback) instead of 4.
+> **Note:** This document describes the hybrid on-device parser approach (Vision Framework + Foundation Models) that was successfully implemented in V1. The project has since transitioned to using the **Claude API** for receipt parsing, which provides better accuracy and simpler architecture. This document is preserved for technical learning and reference. See [JOURNEY.md](JOURNEY.md) for the full development story and [README.md](README.md) for current implementation.
+
+**V1 Outcome:** HybridParser successfully solved all receipt parsing challenges. V2 simplified to Claude API instead of maintaining multiple parsers.
 
 ---
 
