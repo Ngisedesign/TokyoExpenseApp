@@ -31,6 +31,11 @@ struct TotalBudgetBar: View {
 
             let foodProgress = Double(truncating: ((foodSpent / total) as NSNumber))
             let transportProgress = Double(truncating: ((transportSpent / total) as NSNumber))
+            let totalProgress = foodProgress + transportProgress
+
+            // Calculate overflow
+            let isOverBudget = totalProgress > 1.0
+            let overflowAmount = max(0.0, totalProgress - 1.0)
 
             let clampedFood = max(0.0, min(foodProgress, 1.0))
             let remainingCapacity = max(0.0, 1.0 - clampedFood)
@@ -57,6 +62,17 @@ struct TotalBudgetBar: View {
                     .fill(BudgetTracker.BudgetCategory.transport.color)
                     .frame(width: transportWidth)
                     .offset(x: foodWidth)
+
+                // Dark overlay for over-budget portion
+                if isOverBudget {
+                    let overflowWidth = width * CGFloat(overflowAmount)
+                    let overlayStart = width - overflowWidth
+
+                    RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                        .fill(.black.opacity(0.35))
+                        .frame(width: overflowWidth)
+                        .offset(x: overlayStart)
+                }
 
                 // Icons over segments (hide if too small)
                 if foodWidth > 24 {
