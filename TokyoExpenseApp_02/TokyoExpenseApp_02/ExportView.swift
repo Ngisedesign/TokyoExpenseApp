@@ -9,7 +9,8 @@ struct ExportView: View {
     @State private var endDate = Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 5))!
     @State private var selectedCategories: Set<String> = Set(ExpenseCategory.allCases.map { $0.rawValue })
     @State private var showShareSheet = false
-    @State private var csvURL: URL?
+    @State private var exportedItems: [Any] = []
+    @State private var exportDirectoryURL: URL?
     @State private var isExporting = false
     @State private var exportProgress: Double = 0.0
     @State private var exportTask: Task<Void, Never>?
@@ -96,7 +97,7 @@ struct ExportView: View {
                     HStack {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 24, weight: .bold))
-                        Text("Export CSV")
+                        Text("Export Report")
                             .font(.title3)
                             .fontWeight(.semibold)
                     }
@@ -113,9 +114,7 @@ struct ExportView: View {
         }
         .padding()
         .sheet(isPresented: $showShareSheet) {
-            if let url = csvURL {
-                ShareSheet(items: [url])
-            }
+            ShareSheet(items: exportedItems)
         }
     }
 
@@ -138,41 +137,97 @@ struct ExportView: View {
 
     private func exportCSV() async {
         let expenses = filteredExpenses
-        let totalExpenses = expenses.count
+        let sortedExpenses = expenses.sorted { $0.date < $1.date }
+        let totalExpenses = sortedExpenses.count
 
-        // Simulate progress for better UX (CSV generation is usually very fast)
+        // Early exit if nothing to export
+        guard totalExpenses > 0 else {
+            await MainActor.run {
+                isExporting = false
+                exportProgress = 0.0
+            }
+            return
+        }
+
+        // Determine number width (2 digits for <100, else 3)
+        let numberWidth = totalExpenses >= 100 ? 3 : 2
+
         await MainActor.run {
             exportProgress = 0.1
         }
 
         do {
-            // Check if task was cancelled
-            try Task.checkCancellation()
+            // Prepare export directory
+            let timestamp = Int(Date().timeIntervalSince1970)
+            let exportDir = FileManager.default.temporaryDirectory.appendingPathComponent("expenses_export_\(timestamp)", isDirectory: true)
+            try FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
 
-            await MainActor.run {
-                exportProgress = 0.3
+            var filenameMap: [UUID: [String]] = [:]
+            var imageURLs: [URL] = []
+
+            // Copy and rename images in chronological order
+            for (index, expense) in sortedExpenses.enumerated() {
+                try Task.checkCancellation()
+
+                let number = String(format: "%0*d", numberWidth, index + 1)
+                let baseSlug = makeSlug(for: expense)
+                let baseName = "\(number)_\(baseSlug)"
+
+                let paths = expense.receiptImagePaths
+                var exportedNames: [String] = []
+
+                if paths.isEmpty {
+                    // Ensure we still register an empty mapping so CSV doesn't fall back to originals
+                    filenameMap[expense.id] = []
+                } else {
+                    for (i, filename) in paths.enumerated() {
+                        let srcURL = ImageManager.shared.getImageURL(filename)
+                        let ext = srcURL.pathExtension.isEmpty ? "jpg" : srcURL.pathExtension
+                        let suffix = (i == 0) ? "" : "_\(i + 1)"
+                        let newName = "\(baseName)\(suffix).\(ext)"
+                        let dstURL = exportDir.appendingPathComponent(newName)
+
+                        // Copy (overwrite if exists)
+                        if FileManager.default.fileExists(atPath: dstURL.path) {
+                            try? FileManager.default.removeItem(at: dstURL)
+                        }
+                        try FileManager.default.copyItem(at: srcURL, to: dstURL)
+
+                        exportedNames.append(newName)
+                        imageURLs.append(dstURL)
+                    }
+                    filenameMap[expense.id] = exportedNames
+                }
+
+                // Update progress roughly proportional to items processed (up to 0.7)
+                let progress = 0.1 + (0.6 * Double(index + 1) / Double(totalExpenses))
+                await MainActor.run {
+                    exportProgress = progress
+                }
             }
 
-            // Generate CSV
-            let csvString = CSVExporter.shared.generateCSV(from: expenses)
-
-            // Check if task was cancelled
             try Task.checkCancellation()
 
+            // Generate CSV referencing exported names
+            let csvString = CSVExporter.shared.generateCSV(from: sortedExpenses, filenameMap: filenameMap, numberWidth: numberWidth)
+            let csvURL = exportDir.appendingPathComponent("expenses.csv")
+            try csvString.write(to: csvURL, atomically: true, encoding: .utf8)
+
             await MainActor.run {
-                exportProgress = 0.7
+                exportProgress = 0.95
             }
 
-            // Write to file
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("expenses.csv")
-            try csvString.write(to: tempURL, atomically: true, encoding: .utf8)
+            // Build share items: CSV first, then images
+            var items: [Any] = [csvURL]
+            items.append(contentsOf: imageURLs)
 
             await MainActor.run {
+                exportedItems = items
+                exportDirectoryURL = exportDir
                 exportProgress = 1.0
-                csvURL = tempURL
                 isExporting = false
                 showShareSheet = true
-                print("✅ Exported \(totalExpenses) expenses to CSV")
+                print("✅ Exported \(totalExpenses) expenses with \(imageURLs.count) images")
             }
         } catch is CancellationError {
             await MainActor.run {
@@ -185,8 +240,22 @@ struct ExportView: View {
                 isExporting = false
                 exportProgress = 0.0
             }
-            print("❌ Error exporting CSV: \(error)")
+            print("❌ Error exporting report: \(error)")
         }
+    }
+
+    private func makeSlug(for expense: Expense) -> String {
+        // Prefer short description; fallback to merchant; fallback to category
+        let raw = expense.expenseDescription.isEmpty ? (expense.merchantName.isEmpty ? expense.category : expense.merchantName) : expense.expenseDescription
+
+        // Lowercase, replace non-alphanumerics with underscores, collapse repeats, trim, and limit length
+        var s = raw.lowercased()
+        s = s.replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        while s.contains("__") { s = s.replacingOccurrences(of: "__", with: "_") }
+        if s.isEmpty { s = "entry" }
+        if s.count > 24 { s = String(s.prefix(24)) }
+        return s
     }
 }
 

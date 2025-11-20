@@ -9,7 +9,6 @@ struct ExpenseListView: View {
     @State private var searchText = ""
     @State private var selectedCategory: ExpenseCategory? = nil
     @State private var selectedExpense: Expense?
-    @State private var showingDetailView = false
     @State private var isEditMode = false
     @State private var selectedExpenses: Set<UUID> = []
     @State private var showDeleteConfirmation = false
@@ -110,7 +109,6 @@ struct ExpenseListView: View {
                                 toggleSelection(expense)
                             } else {
                                 selectedExpense = expense
-                                showingDetailView = true
                             }
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -150,10 +148,8 @@ struct ExpenseListView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingDetailView) {
-            if let expense = selectedExpense {
-                ExpenseDetailView(expense: expense)
-            }
+        .sheet(item: $selectedExpense) { expense in
+            ExpenseDetailView(expense: expense)
         }
         .alert("Delete Expenses", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
