@@ -242,6 +242,49 @@ do {
 
 ---
 
+## Planned Enhancements
+
+See [README.md](README.md#roadmap) for full roadmap.
+
+### Phase 1: AI-Generated Descriptions
+**Status**: Planned
+**Goal**: Generate simple descriptions like "Lunch", "Dinner", "Coffee"
+
+**Implementation**:
+- Extend ParsedReceipt model with `expenseDescription` field
+- Update Claude prompt to infer meal type from receipt context
+- Add description field to UI (auto-filled, editable)
+
+### Phase 2: Expense Editing
+**Status**: Planned
+**Goal**: Allow users to edit expenses after creation
+
+**Implementation**:
+- Create ExpenseDetailView for viewing/editing
+- Add tap navigation from expense lists
+- Update SwiftData models
+
+### Phase 3: Bulk Operations
+**Status**: Planned
+**Goal**: Edit mode with multi-select and batch actions
+
+**Implementation**:
+- Add Edit/Done toggle to ExpenseListView
+- Checkboxes for multi-select
+- Bulk delete, categorize, export
+- Swipe-to-delete for individual items
+
+### Phase 4: Enhanced Export
+**Status**: Planned
+**Goal**: Improve export UX with cancellation
+
+**Implementation**:
+- Add cancel button to ExportView
+- Progress indicator for large datasets
+- Better error handling
+
+---
+
 ## Summary
 
 **Issues Fixed:** 9

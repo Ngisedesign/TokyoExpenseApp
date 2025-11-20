@@ -42,6 +42,7 @@ That's it! The app will now use Claude Vision to parse receipts when you:
    - **Total amount** (in Yen)
    - **Date** (automatically formatted)
    - **Category** (Food/Per Diem, Transport, or Other)
+   - **Description** (e.g., "Lunch", "Dinner", "Coffee", "Train") *[Coming Soon]*
    - **Confidence score** (0-100%)
 4. The form is auto-filled with the extracted data
 5. You can review and edit before saving
