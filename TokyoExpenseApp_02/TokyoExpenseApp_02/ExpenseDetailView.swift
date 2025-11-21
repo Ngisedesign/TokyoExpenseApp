@@ -119,9 +119,15 @@ struct ExpenseDetailView: View {
                     // Date
                     LabeledField(label: "Date") {
                         DatePicker("", selection: $date, displayedComponents: .date)
-                            .datePickerStyle(.compact)
                             .labelsHidden()
-                            .padding(.vertical, 8)
+                            .datePickerStyle(.compact)
+                            .font(.title2) // match Merchant field font
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(.black.opacity(0.03))
+                            )
                     }
 
                     // Additional Info

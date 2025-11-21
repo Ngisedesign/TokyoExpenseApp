@@ -6,7 +6,6 @@ struct ExpenseListView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @AppStorage("showYen") private var showYen = true
 
-    @State private var searchText = ""
     @State private var selectedCategory: ExpenseCategory? = nil
     @State private var selectedExpense: Expense?
     @State private var isEditMode = false
@@ -15,11 +14,8 @@ struct ExpenseListView: View {
 
     var filteredExpenses: [Expense] {
         expenses.filter { expense in
-            let matchesSearch = searchText.isEmpty ||
-                expense.merchantName.localizedCaseInsensitiveContains(searchText)
-            let matchesCategory = selectedCategory == nil ||
-                expense.category == selectedCategory?.rawValue
-            return matchesSearch && matchesCategory
+            let matchesCategory = selectedCategory == nil || expense.category == selectedCategory?.rawValue
+            return matchesCategory
         }
     }
 
@@ -76,12 +72,6 @@ struct ExpenseListView: View {
             }
             .padding(.vertical, 16)
 
-            // Search
-            TextField("Search", text: $searchText)
-                .font(.body)
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-
             Divider()
                 .padding(.horizontal)
 
@@ -99,10 +89,12 @@ struct ExpenseListView: View {
                                         .foregroundStyle(selectedExpenses.contains(expense.id) ? .blue : .secondary)
                                 }
                                 .buttonStyle(.plain)
+                                .frame(width: 28, height: 28)
                             }
 
-                            ExpenseRow(expense: expense, showYen: showYen)
+                            ExpenseRow(expense: expense, showYen: showYen, isEditMode: isEditMode)
                         }
+                        .padding(.horizontal)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if isEditMode {
@@ -119,7 +111,7 @@ struct ExpenseListView: View {
                             }
                         }
                         Divider()
-                            .padding(.leading, isEditMode ? 60 : 0)
+                            .padding(.leading, isEditMode ? 56 : 0)
                     }
                 }
             }
@@ -210,46 +202,54 @@ struct ExpenseListView: View {
 struct ExpenseRow: View {
     let expense: Expense
     let showYen: Bool
+    let isEditMode: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Date in large, light grey
-            Text(DateFormatters.shortDate(expense.date))
-                .font(.system(size: 32, weight: .medium))
-                .foregroundStyle(.secondary.opacity(0.4))
-                .frame(width: 80, alignment: .leading)
-
-            // Merchant name and description
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expense.merchantName)
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+        ZStack(alignment: .leading) {
+            // Background date watermark (single line)
+            HStack {
+                Text(DateFormatters.shortDate(expense.date))
+                    .font(.system(size: 56, weight: .black))
+                    .foregroundStyle(.primary.opacity(0.06))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .offset(x: isEditMode ? 40 : 0)
+                Spacer()
+            }
 
-                if !expense.expenseDescription.isEmpty {
-                    Text(expense.expenseDescription)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            // Foreground content
+            HStack(alignment: .top, spacing: 16) {
+                // Merchant name and description
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(expense.merchantName)
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
+                        .padding(.leading, -7) // shift title 7pt to the left
+
+                    if !expense.expenseDescription.isEmpty {
+                        Text(expense.expenseDescription)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                // Amount
+                if showYen {
+                    Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
+                        .font(.title3)
+                        .fontWeight(.medium)
+                } else {
+                    Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
+                        .font(.title3)
+                        .fontWeight(.medium)
                 }
             }
-
-            Spacer()
-
-            // Amount
-            if showYen {
-                Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
-                    .font(.title3)
-                    .fontWeight(.medium)
-            } else {
-                Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
-                    .font(.title3)
-                    .fontWeight(.medium)
-            }
         }
-        .padding(.horizontal)
         .padding(.vertical, 16)
     }
 }
-
