@@ -51,169 +51,165 @@ struct AddEntryView: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Receipt Processing Indicator
-                    if isProcessingOCR {
-                        HStack {
-                            ProgressView()
-                            Text("Analyzing receipt with AI...")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Receipt Processing Indicator
+                        if isProcessingOCR {
+                            HStack {
+                                ProgressView()
+                                Text("Analyzing receipt with AI...")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal)
+                        }
+
+                        // Top Section: Image + Categories
+                        HStack(alignment: .top, spacing: 16) {
+                            // Left: Receipt Image / Camera Button
+                            ZStack(alignment: .bottomTrailing) {
+                                if let image = selectedImageUI {
+                                    // Show captured image
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxWidth: geometry.size.width * 0.45)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                .strokeBorder(.black.opacity(0.1), lineWidth: 1)
+                                        )
+                                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                                        .onTapGesture {
+                                            showLibraryPicker = true
+                                        }
+                                } else {
+                                    ImagePlaceholder(
+                                        icon: "photo.fill",
+                                        text: "Add Image",
+                                        height: 160
+                                    ) {
+                                        showLibraryPicker = true
+                                    }
+                                    .frame(width: 120) // Fixed width placeholder
+                                }
+
+                                // Camera button
+                                Button {
+                                    showCamera = true
+                                } label: {
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(.black.opacity(0.6))
+                                        .padding(8)
+                                        .background(
+                                            Circle()
+                                                .fill(.white.opacity(0.8))
+                                                .shadow(radius: 2)
+                                        )
+                                }
+                                .padding(8)
+                            }
+
+                            // Right: Categories (Wrapping)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Category")
+                                    .font(.headline)
+                                    .foregroundStyle(.black)
+
+                                FlowLayout(spacing: 8) {
+                                    ForEach(ExpenseCategory.allCases, id: \.self) { cat in
+                                        CategoryPill(
+                                            text: cat.rawValue,
+                                            isSelected: category == cat
+                                        ) {
+                                            category = cat
+                                        }
+                                    }
+                                }
+                            }
                         }
                         .padding(.horizontal)
-                    }
-
-                    // Receipt Image / Library Section
-                    ZStack(alignment: .bottomTrailing) {
-                        if let image = selectedImageUI {
-                            // Show captured image
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 280)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .strokeBorder(.black.opacity(0.1), lineWidth: 1)
-                                )
-                                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                                .onTapGesture {
-                                    showLibraryPicker = true
-                                }
-                        } else {
-                            ImagePlaceholder(
-                                icon: "photo.fill",
-                                text: "Add from library"
-                            ) {
-                                showLibraryPicker = true
-                            }
-                        }
-
-                        // Camera button in bottom right corner
-                        Button {
-                            showCamera = true
-                        } label: {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundStyle(.black.opacity(0.3))
-                                .padding(16)
-                                .background(
-                                    Circle()
-                                        .strokeBorder(.black.opacity(0.3), lineWidth: 2)
-                                )
-                        }
-                        .padding(16)
-                    }
-
-                    // Category Selection
-                    LabeledField(label: "Category", spacing: 12) {
-                        HStack(spacing: 12) {
-                            ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                                CategoryPill(
-                                    text: cat.rawValue,
-                                    isSelected: category == cat
-                                ) {
-                                    category = cat
-                                }
-                            }
-                        }
-                    }
 
                     // Merchant Name
-                    LabeledField(label: "Merchant") {
-                        VStack(alignment: .leading, spacing: 8) {
+                    LabeledField(label: "Merchant", spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 TextField("Where did you spend?", text: $merchant)
-                                    .font(.title2)
-                                    .fontWeight(.medium)
+                                    .font(.body) // Consistent font
                                     .foregroundStyle(merchantIsPlaceholder ? .red : .black)
                                     .onChange(of: merchant) { _, _ in
-                                        // User is editing - no longer a placeholder
                                         if merchantIsPlaceholder {
                                             merchantIsPlaceholder = false
                                         }
                                     }
 
                                 if merchantIsPlaceholder {
-                                    Text("NEEDS REVIEW")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(
-                                            Capsule()
-                                                .fill(.red)
-                                        )
-                                }
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(merchantIsPlaceholder ? .red.opacity(0.05) : .black.opacity(0.03))
-                            )
-
-                            if merchantIsPlaceholder {
-                                Text("🎨 AI-generated name - please update with actual merchant")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                                    .padding(.leading, 4)
-                            }
-                        }
-                    }
-
-                    // Description
-                    LabeledField(label: "Description") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                TextField("What was this for?", text: $expenseDescription)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                    .onChange(of: expenseDescription) { _, _ in
-                                        // User is editing - no longer AI-generated
-                                        if descriptionIsAIGenerated {
-                                            descriptionIsAIGenerated = false
-                                        }
-                                    }
-
-                                if descriptionIsAIGenerated {
-                                    Text("AI")
+                                    Text("REVIEW")
                                         .font(.caption2)
                                         .fontWeight(.bold)
                                         .foregroundStyle(.white)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 3)
-                                        .background(
-                                            Capsule()
-                                                .fill(.blue)
-                                        )
+                                        .background(Capsule().fill(.red))
                                 }
                             }
-                            .padding()
+                            .padding(12)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.black.opacity(0.03))
+                                    .fill(merchantIsPlaceholder ? .red.opacity(0.05) : .black.opacity(0.03))
                             )
                         }
                     }
+                    .padding(.horizontal)
 
-                    // Amount and Date separated
-                    // Amount in Yen
-                    LabeledField(label: "Amount") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
+                    // Description
+                    LabeledField(label: "Description", spacing: 8) {
+                        HStack {
+                            TextField("What was this for?", text: $expenseDescription)
+                                .font(.body) // Consistent font
+                                .foregroundStyle(.primary)
+                                .onChange(of: expenseDescription) { _, _ in
+                                    if descriptionIsAIGenerated {
+                                        descriptionIsAIGenerated = false
+                                    }
+                                }
+
+                            if descriptionIsAIGenerated {
+                                Text("AI")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Capsule().fill(.blue))
+                            }
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(.black.opacity(0.03))
+                        )
+                    }
+                    .padding(.horizontal)
+
+                    // Amount
+                    LabeledField(label: "Amount", spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
                                 Text("¥")
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundStyle(.black)
+                                    .font(.body) // Consistent font
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.secondary)
 
                                 TextField("0", text: $amountYen)
-                                    .font(.system(size: 32, weight: .bold))
+                                    .font(.body) // Consistent font
+                                    .fontWeight(.bold)
                                     .keyboardType(.numberPad)
                                     .foregroundStyle(.black)
                             }
-                            .padding()
+                            .padding(12)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(.black.opacity(0.03))
@@ -221,30 +217,35 @@ struct AddEntryView: View {
 
                             Group {
                                 if let rate = aiExchangeRate {
-                                    Text("Using receipt exchange rate: \u{00a5}\(NSDecimalNumber(decimal: rate).stringValue) = $1 USD")
+                                    Text("Rate: \u{00a5}\(NSDecimalNumber(decimal: rate).stringValue)")
                                 } else if let cached = ExchangeRateService.shared.getCachedRate(for: date) {
-                                    Text("Using cached exchange rate: \u{00a5}\(NSDecimalNumber(decimal: cached).stringValue) = $1 USD")
-                                } else {
-                                    Text("Exchange rate will be fetched on save")
+                                    Text("Rate: \u{00a5}\(NSDecimalNumber(decimal: cached).stringValue)")
                                 }
                             }
-                            .font(.footnote)
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                             .padding(.leading, 4)
                         }
                     }
+                    .padding(.horizontal)
 
-                    // Date
-                    LabeledField(label: "Date") {
+                    // Date (Standalone Pill)
+                    HStack {
+                        Text("Date")
+                            .font(.headline)
+                            .foregroundStyle(.black)
+                        
+                        Spacer()
+                        
                         DatePicker("", selection: $date, displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .labelsHidden()
-                            .padding(.vertical, 8)
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
 
                     Spacer(minLength: 100)
                 }
-                .padding(.horizontal)
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -307,6 +308,7 @@ struct AddEntryView: View {
                 bugOffset = 500 // Hide when error is cleared
                 bugWiggle = false
             }
+        }
         }
     }
 
@@ -518,9 +520,8 @@ struct AddEntryView: View {
             }
         }
     }
-}
+} // End of struct AddEntryView
 
 #Preview {
     AddEntryView()
 }
-

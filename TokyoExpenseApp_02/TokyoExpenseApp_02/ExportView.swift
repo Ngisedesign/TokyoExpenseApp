@@ -123,7 +123,7 @@ struct ExportView: View {
         exportProgress = 0.0
 
         exportTask = Task {
-            await exportCSV()
+            await exportReport()
         }
     }
 
@@ -135,7 +135,7 @@ struct ExportView: View {
         print("📊 Export cancelled by user")
     }
 
-    private func exportCSV() async {
+    private func exportReport() async {
         let expenses = filteredExpenses
         let sortedExpenses = expenses.sorted { $0.date < $1.date }
         let totalExpenses = sortedExpenses.count
@@ -149,9 +149,6 @@ struct ExportView: View {
             return
         }
 
-        // Determine number width (2 digits for <100, else 3)
-        let numberWidth = totalExpenses >= 100 ? 3 : 2
-
         await MainActor.run {
             exportProgress = 0.1
         }
@@ -159,7 +156,7 @@ struct ExportView: View {
         do {
             // Prepare export directory
             let timestamp = Int(Date().timeIntervalSince1970)
-            let exportDir = FileManager.default.temporaryDirectory.appendingPathComponent("expenses_export_\(timestamp)", isDirectory: true)
+            let exportDir = FileManager.default.temporaryDirectory.appendingPathComponent("Expense_Report_\(timestamp)", isDirectory: true)
             try FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
 
             var filenameMap: [UUID: [String]] = [:]
@@ -169,7 +166,8 @@ struct ExportView: View {
             for (index, expense) in sortedExpenses.enumerated() {
                 try Task.checkCancellation()
 
-                let number = String(format: "%0*d", numberWidth, index + 1)
+                // Format: 001_merchant_name.jpg
+                let number = String(format: "%03d", index + 1)
                 let baseSlug = makeSlug(for: expense)
                 let baseName = "\(number)_\(baseSlug)"
 
@@ -177,7 +175,6 @@ struct ExportView: View {
                 var exportedNames: [String] = []
 
                 if paths.isEmpty {
-                    // Ensure we still register an empty mapping so CSV doesn't fall back to originals
                     filenameMap[expense.id] = []
                 } else {
                     for (i, filename) in paths.enumerated() {
@@ -208,17 +205,17 @@ struct ExportView: View {
 
             try Task.checkCancellation()
 
-            // Generate CSV referencing exported names
-            let csvString = CSVExporter.shared.generateCSV(from: sortedExpenses, filenameMap: filenameMap, numberWidth: numberWidth)
-            let csvURL = exportDir.appendingPathComponent("expenses.csv")
-            try csvString.write(to: csvURL, atomically: true, encoding: .utf8)
+            // Generate PDF
+            let pdfData = PDFExporter.shared.createPDF(expenses: sortedExpenses, filenameMap: filenameMap)
+            let pdfURL = exportDir.appendingPathComponent("Expense_Report.pdf")
+            try pdfData.write(to: pdfURL)
 
             await MainActor.run {
                 exportProgress = 0.95
             }
 
-            // Build share items: CSV first, then images
-            var items: [Any] = [csvURL]
+            // Build share items: PDF first, then images
+            var items: [Any] = [pdfURL]
             items.append(contentsOf: imageURLs)
 
             await MainActor.run {
@@ -227,7 +224,7 @@ struct ExportView: View {
                 exportProgress = 1.0
                 isExporting = false
                 showShareSheet = true
-                print("✅ Exported \(totalExpenses) expenses with \(imageURLs.count) images")
+                print("✅ Exported \(totalExpenses) expenses with PDF and \(imageURLs.count) images")
             }
         } catch is CancellationError {
             await MainActor.run {

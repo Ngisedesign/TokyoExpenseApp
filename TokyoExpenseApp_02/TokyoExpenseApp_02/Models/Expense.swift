@@ -67,6 +67,8 @@ final class Expense {
 enum ExpenseCategory: String, CaseIterable, Codable {
     case food = "Food"
     case transport = "Transport"
+    case hotel = "Hotel"
+    case flight = "Flight"
     case other = "Other"
 
     var color: String {
@@ -75,6 +77,10 @@ enum ExpenseCategory: String, CaseIterable, Codable {
             return "blue"
         case .transport:
             return "green"
+        case .hotel:
+            return "purple"
+        case .flight:
+            return "cyan"
         case .other:
             return "gray"
         }

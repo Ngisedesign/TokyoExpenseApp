@@ -18,13 +18,13 @@ struct CategoryPill: View {
     var body: some View {
         Button(action: action) {
             Text(text)
-                .font(.callout)
+                .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(isSelected ? .white : .black)
-                .padding(.vertical, 10)
-                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    Capsule()
                         .fill(isSelected ? .black : .black.opacity(0.05))
                 )
         }

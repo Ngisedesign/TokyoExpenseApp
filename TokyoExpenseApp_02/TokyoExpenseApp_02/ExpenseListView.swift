@@ -45,7 +45,7 @@ struct ExpenseListView: View {
 
             // Category filters - minimalist text buttons
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 24) {
+                HStack(spacing: 8) {
                     Button {
                         selectedCategory = nil
                     } label: {
