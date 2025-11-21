@@ -10,7 +10,7 @@ struct AddEntryView: View {
     @State private var expenseDescription: String = ""
     @State private var date: Date = .now
     @State private var amountYen: String = ""
-    @State private var selectedItem: PhotosPickerItem? = nil
+
     @State private var selectedImageUI: UIImage? = nil
     @State private var showCamera: Bool = false
     @State private var showLibraryPicker: Bool = false
@@ -281,14 +281,13 @@ struct AddEntryView: View {
                 Text(error)
             }
         }
-        .sheet(isPresented: $showCamera) {
+        .fullScreenCover(isPresented: $showCamera) {
             ImagePickerController(image: $selectedImageUI, sourceType: .camera)
+                .edgesIgnoringSafeArea(.all)
         }
-        .photosPicker(isPresented: $showLibraryPicker, selection: $selectedItem, matching: .images)
-        .onChange(of: selectedItem) { oldValue, newValue in
-            Task {
-                await loadImage(from: newValue)
-            }
+        .fullScreenCover(isPresented: $showLibraryPicker) {
+            PhotoLibraryPicker(selectedImage: $selectedImageUI)
+                .edgesIgnoringSafeArea(.all)
         }
         .onChange(of: selectedImageUI) { oldValue, newValue in
             // Trigger receipt parsing whenever image changes (camera or library)
@@ -516,24 +515,7 @@ struct AddEntryView: View {
         }
     }
 
-    private func loadImage(from item: PhotosPickerItem?) async {
-        guard let item = item else {
-            selectedImageUI = nil
-            return
-        }
-        do {
-            if let data = try await item.loadTransferable(type: Data.self),
-               let uiImage = UIImage(data: data) {
-                await MainActor.run {
-                    selectedImageUI = uiImage
-                }
-            }
-        } catch {
-            await MainActor.run {
-                selectedImageUI = nil
-            }
-        }
-    }
+
 } // End of struct AddEntryView
 
 #Preview {

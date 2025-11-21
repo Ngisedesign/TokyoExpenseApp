@@ -141,7 +141,7 @@ struct ExpenseListView: View {
                 }
             }
         }
-        .sheet(item: $selectedExpense) { expense in
+        .fullScreenCover(item: $selectedExpense) { expense in
             ExpenseDetailView(expense: expense)
         }
         .alert("Delete Expenses", isPresented: $showDeleteConfirmation) {

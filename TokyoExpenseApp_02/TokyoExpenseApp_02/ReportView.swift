@@ -44,10 +44,10 @@ struct ReportView: View {
             
             Spacer()
         }
-        .sheet(isPresented: $showExportSheet) {
+        .fullScreenCover(isPresented: $showExportSheet) {
             ExportView()
         }
-        .sheet(item: $selectedExpense) { expense in
+        .fullScreenCover(item: $selectedExpense) { expense in
             ExpenseDetailView(expense: expense)
         }
     }

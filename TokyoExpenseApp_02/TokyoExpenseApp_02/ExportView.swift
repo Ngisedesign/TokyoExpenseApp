@@ -3,6 +3,7 @@ import SwiftData
 
 struct ExportView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) var dismiss
     @Query private var expenses: [Expense]
 
     @State private var startDate = Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 1))!
@@ -25,6 +26,15 @@ struct ExportView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            // Header with dismiss button
+            HStack {
+                Spacer()
+                LargeIconButton(icon: "xmark") {
+                    dismiss()
+                }
+            }
+            .padding(.bottom, -10)
+
             Text("Export Expenses")
                 .font(.largeTitle)
                 .fontWeight(.bold)

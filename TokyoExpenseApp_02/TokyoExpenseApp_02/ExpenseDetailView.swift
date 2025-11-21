@@ -16,7 +16,7 @@ struct ExpenseDetailView: View {
     @State private var showReplaceOptions = false
     @State private var showCamera = false
     @State private var showLibraryPicker = false
-    @State private var selectedItem: PhotosPickerItem? = nil
+
     @State private var capturedImage: UIImage? = nil
     @State private var imageToReplacePath: String? = nil
 
@@ -30,10 +30,34 @@ struct ExpenseDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                LargeIconButton(icon: "xmark") {
+                    dismiss()
+                }
+                Spacer()
+                LargeIconButton(
+                    icon: "checkmark",
+                    color: canSave ? .black : .secondary
+                ) {
+                    saveChanges()
+                    dismiss()
+                }
+                .disabled(!canSave)
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+
             GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
+                        Text("Edit Expense")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+
                         // Top Section: Image + Categories
                         HStack(alignment: .top, spacing: 16) {
                             // Left: Receipt Image
@@ -200,36 +224,19 @@ struct ExpenseDetailView: View {
                     .padding(.vertical)
                 }
             }
-            .navigationTitle("Edit Expense")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveChanges()
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(!canSave)
-                }
-            }
         }
         .confirmationDialog("Replace receipt image", isPresented: $showReplaceOptions, titleVisibility: .visible) {
             Button("Choose from Library") { showLibraryPicker = true }
             Button("Take Photo") { showCamera = true }
             Button("Cancel", role: .cancel) { }
         }
-        .photosPicker(isPresented: $showLibraryPicker, selection: $selectedItem, matching: .images)
-        .sheet(isPresented: $showCamera) {
-            ImagePickerController(image: $capturedImage, sourceType: .camera)
+        .fullScreenCover(isPresented: $showLibraryPicker) {
+            PhotoLibraryPicker(selectedImage: $capturedImage)
+                .edgesIgnoringSafeArea(.all)
         }
-        .onChange(of: selectedItem) { oldValue, newValue in
-            Task { await loadImage(from: newValue) }
+        .fullScreenCover(isPresented: $showCamera) {
+            ImagePickerController(image: $capturedImage, sourceType: .camera)
+                .edgesIgnoringSafeArea(.all)
         }
         .onChange(of: capturedImage) { oldValue, newValue in
             if let image = newValue {
@@ -295,70 +302,10 @@ struct ExpenseDetailView: View {
         imageToReplacePath = nil
     }
 
-    private func loadImage(from item: PhotosPickerItem?) async {
-        guard let item = item else { return }
-        do {
-            if let data = try await item.loadTransferable(type: Data.self),
-               let uiImage = UIImage(data: data) {
-                await MainActor.run {
-                    replaceReceiptImage(with: uiImage)
-                    selectedItem = nil
-                }
-            }
-        } catch {
-            print("❌ Failed to load image from photo library: \(error)")
-        }
-    }
+
 }
 
-// MARK: - Image Viewer Sheet
 
-struct ImageViewerSheet: View {
-    @Environment(\.dismiss) var dismiss
-    let image: UIImage
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-
-    var body: some View {
-        NavigationStack {
-            GeometryReader { geometry in
-                ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: geometry.size.width * scale)
-                        .scaleEffect(scale)
-                        .gesture(
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    scale = lastScale * value
-                                }
-                                .onEnded { _ in
-                                    lastScale = scale
-                                    // Limit scale
-                                    if scale < 1.0 {
-                                        scale = 1.0
-                                        lastScale = 1.0
-                                    } else if scale > 5.0 {
-                                        scale = 5.0
-                                        lastScale = 5.0
-                                    }
-                                }
-                        )
-                }
-            }
-            .navigationTitle("Receipt Image")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
 
 #Preview {
     let expense = Expense(
