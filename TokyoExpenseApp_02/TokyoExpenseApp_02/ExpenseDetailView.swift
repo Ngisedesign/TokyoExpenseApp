@@ -88,20 +88,34 @@ struct ExpenseDetailView: View {
                             }
 
                             // Right: Categories (Wrapping)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Category")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                
-                                FlowLayout(spacing: 8) {
-                                    ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                                        CategoryPill(
-                                            text: cat.rawValue,
-                                            isSelected: category == cat
-                                        ) {
-                                            category = cat
+                            VStack(alignment: .leading, spacing: 16) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Category")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    FlowLayout(spacing: 8) {
+                                        ForEach(ExpenseCategory.allCases, id: \.self) { cat in
+                                            CategoryPill(
+                                                text: cat.rawValue,
+                                                isSelected: category == cat
+                                            ) {
+                                                category = cat
+                                            }
                                         }
                                     }
+                                }
+
+                                // Date (Moved from bottom)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Date")
+                                        .font(.headline)
+                                        .foregroundStyle(.black)
+                                    
+                                    DatePicker("", selection: $date, displayedComponents: .date)
+                                        .labelsHidden()
+                                        .datePickerStyle(.compact)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                         }
@@ -150,20 +164,6 @@ struct ExpenseDetailView: View {
                                         .fill(.black.opacity(0.03))
                                 )
                             }
-
-                            // Date (Standalone Pill)
-                            HStack {
-                                Text("Date")
-                                    .font(.headline)
-                                    .foregroundStyle(.black)
-                                
-                                Spacer()
-                                
-                                DatePicker("", selection: $date, displayedComponents: .date)
-                                    .labelsHidden()
-                                    .datePickerStyle(.compact)
-                            }
-                            .padding(.vertical, 4)
 
                             // Additional Info
                             VStack(alignment: .leading, spacing: 8) {

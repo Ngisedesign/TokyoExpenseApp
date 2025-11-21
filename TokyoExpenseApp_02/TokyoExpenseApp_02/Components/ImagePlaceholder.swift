@@ -29,9 +29,9 @@ struct ImagePlaceholder: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 16) {
+            VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 64, weight: .bold))
+                    .font(.system(size: 80, weight: .bold))
                     .foregroundStyle(.black.opacity(0.30))
 
                 Text(text)

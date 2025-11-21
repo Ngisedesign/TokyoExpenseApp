@@ -107,32 +107,46 @@ struct AddEntryView: View {
                                 } label: {
                                     Image(systemName: "camera.fill")
                                         .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(.black.opacity(0.6))
+                                        .foregroundStyle(.gray.opacity(0.8))
                                         .padding(8)
                                         .background(
                                             Circle()
-                                                .fill(.white.opacity(0.8))
-                                                .shadow(radius: 2)
+                                                .fill(.white)
+                                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                                         )
                                 }
                                 .padding(8)
                             }
 
                             // Right: Categories (Wrapping)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Category")
-                                    .font(.headline)
-                                    .foregroundStyle(.black)
+                            VStack(alignment: .leading, spacing: 16) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Category")
+                                        .font(.headline)
+                                        .foregroundStyle(.black)
 
-                                FlowLayout(spacing: 8) {
-                                    ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                                        CategoryPill(
-                                            text: cat.rawValue,
-                                            isSelected: category == cat
-                                        ) {
-                                            category = cat
+                                    FlowLayout(spacing: 8) {
+                                        ForEach(ExpenseCategory.allCases, id: \.self) { cat in
+                                            CategoryPill(
+                                                text: cat.rawValue,
+                                                isSelected: category == cat
+                                            ) {
+                                                category = cat
+                                            }
                                         }
                                     }
+                                }
+
+                                // Date (Moved from bottom)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Date")
+                                        .font(.headline)
+                                        .foregroundStyle(.black)
+                                    
+                                    DatePicker("", selection: $date, displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                         }
@@ -234,21 +248,6 @@ struct AddEntryView: View {
                         }
                     }
                     .padding(.horizontal)
-
-                    // Date (Standalone Pill)
-                    HStack {
-                        Text("Date")
-                            .font(.headline)
-                            .foregroundStyle(.black)
-                        
-                        Spacer()
-                        
-                        DatePicker("", selection: $date, displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 4)
 
                     Spacer(minLength: 100)
                 }
