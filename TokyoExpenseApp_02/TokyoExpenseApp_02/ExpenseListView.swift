@@ -111,7 +111,8 @@ struct ExpenseListView: View {
                             }
                         }
                         Divider()
-                            .padding(.leading, isEditMode ? 56 : 0)
+                            .padding(.leading, isEditMode ? 56 : 16)
+                            .padding(.trailing, 16)
                     }
                 }
             }
@@ -205,32 +206,28 @@ struct ExpenseRow: View {
     let isEditMode: Bool
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Background date watermark (single line)
-            HStack {
-                Text(DateFormatters.shortDate(expense.date))
-                    .font(.system(size: 56, weight: .black))
-                    .foregroundStyle(.primary.opacity(0.06))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .offset(x: isEditMode ? 40 : 0)
-                Spacer()
-            }
+        ZStack(alignment: .center) {
+            // Background date watermark (centered)
+            Text(DateFormatters.shortDate(expense.date))
+                .font(.system(size: 40, weight: .bold))
+                .foregroundStyle(.primary.opacity(0.06))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .offset(x: isEditMode ? 20 : 0) // Slight offset if edit mode pushes content
 
             // Foreground content
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .center, spacing: 12) {
                 // Merchant name and description
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(expense.merchantName)
-                        .font(.title3)
-                        .fontWeight(.medium)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                        .padding(.leading, -7) // shift title 7pt to the left
 
                     if !expense.expenseDescription.isEmpty {
                         Text(expense.expenseDescription)
-                            .font(.subheadline)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -241,15 +238,15 @@ struct ExpenseRow: View {
                 // Amount
                 if showYen {
                     Text("¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))")
-                        .font(.title3)
-                        .fontWeight(.medium)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                 } else {
                     Text("$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))")
-                        .font(.title3)
-                        .fontWeight(.medium)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                 }
             }
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 4)
     }
 }
