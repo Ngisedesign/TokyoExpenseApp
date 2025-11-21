@@ -15,6 +15,12 @@ struct AddEntryView: View {
     @State private var showCamera: Bool = false
     @State private var showLibraryPicker: Bool = false
     @State private var category: ExpenseCategory = .food
+    
+    var autoLaunchCamera: Bool = false
+    
+    init(autoLaunchCamera: Bool = false) {
+        self.autoLaunchCamera = autoLaunchCamera
+    }
 
     // Receipt parsing state
     @State private var isProcessingOCR: Bool = false
@@ -309,6 +315,14 @@ struct AddEntryView: View {
                 bugWiggle = false
             }
         }
+        }
+        .onAppear {
+            if autoLaunchCamera {
+                // Small delay to ensure view is ready
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showCamera = true
+                }
+            }
         }
     }
 

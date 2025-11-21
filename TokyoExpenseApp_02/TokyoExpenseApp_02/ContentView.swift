@@ -335,6 +335,7 @@ struct ContentView: View {
             HStack {
                 Spacer()
                 LargeIconButton(icon: "camera", size: 48) {
+                    // Open AddEntryView with camera auto-launch
                     showQuickCamera = true
                 }
                 Spacer()
@@ -349,78 +350,8 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $showBudgetView) {
             BudgetCarouselView()
         }
-        .sheet(isPresented: $showQuickCamera) {
-            QuickCameraView(capturedImage: $capturedImage)
-        }
-        .onChange(of: capturedImage) { oldValue, newValue in
-            if let image = newValue {
-                Task {
-                    await processQuickCapture(image)
-                }
-            }
-        }
-    }
-
-    private func processQuickCapture(_ image: UIImage) async {
-        // Run OCR
-        let ocrResult = await OCRService.shared.recognizeText(in: image)
-
-        // Parse receipt
-        var parsedReceipt: ParsedReceipt?
-        if #available(iOS 26.0, *) {
-            parsedReceipt = try? await HybridParser.shared.parseReceipt(
-                from: ocrResult.textElements,
-                confidence: ocrResult.confidence
-            )
-        }
-
-        // Fallback to spatial if needed
-        if parsedReceipt == nil {
-            parsedReceipt = SpatialReceiptParser.shared.parseReceipt(
-                from: ocrResult.textElements,
-                confidence: ocrResult.confidence
-            )
-        }
-
-        // Save image
-        guard let imagePath = ImageManager.shared.saveImage(image) else { return }
-
-        // Determine amounts and date
-        let amountJPY = parsedReceipt?.totalAmountYen ?? Decimal(0)
-        let expenseDate = parsedReceipt?.date ?? Date()
-
-        // Fetch exchange rate for the expense date; fall back only if fetch fails
-        var exchangeRate: Decimal = BudgetTracker.defaultExchangeRate
-        var needsUpdate = false
-        if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: expenseDate) {
-            exchangeRate = fetchedRate
-            print("✅ Successfully fetched exchange rate for quick capture: \(fetchedRate)")
-        } else {
-            print("⚠️ Failed to fetch exchange rate for quick capture, using default: \(BudgetTracker.defaultExchangeRate)")
-            needsUpdate = true
-        }
-
-        let amountUSD = amountJPY / exchangeRate
-
-        let expense = Expense(
-            date: expenseDate,
-            category: parsedReceipt?.category ?? "Other",
-            merchantName: parsedReceipt?.merchantName ?? "Quick Capture",
-            expenseDescription: "",
-            amountJPY: amountJPY,
-            amountUSD: amountUSD,
-            exchangeRate: exchangeRate,
-            receiptImagePaths: [imagePath],
-            isWorkDay: BudgetTracker.isWorkDay(expenseDate),
-            isManualEntry: false,
-            ocrConfidence: parsedReceipt?.confidence,
-            needsExchangeRateUpdate: needsUpdate
-        )
-
-        await MainActor.run {
-            modelContext.insert(expense)
-            try? modelContext.save()
-            capturedImage = nil // Reset
+        .fullScreenCover(isPresented: $showQuickCamera) {
+            AddEntryView(autoLaunchCamera: true)
         }
     }
 }

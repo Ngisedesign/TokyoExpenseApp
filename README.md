@@ -17,7 +17,7 @@ This app helps you track expenses during travel by:
 
 ## Current Status
 
-**Active Development** - Currently using **Claude API** for receipt parsing (transitioned from hybrid on-device parser approach)
+**Active Development** - Using **Claude API** for receipt parsing. Legacy hybrid parser code has been removed.
 
 ### What's Working Now
 - Manual expense entry with date, category, merchant, and amount
@@ -171,7 +171,6 @@ The next phase of development focuses on four key areas:
 - **Swift 6** with SwiftUI
 - **SwiftData** for local persistence
 - **Claude API** (Anthropic) for receipt parsing
-- **Vision Framework** for OCR (potential future use)
 - **iOS 18.0+** minimum deployment target
 
 ### Data Model
