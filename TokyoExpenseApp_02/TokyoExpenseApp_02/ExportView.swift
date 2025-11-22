@@ -167,7 +167,10 @@ struct ExportView: View {
             // Prepare export directory
             let timestamp = Int(Date().timeIntervalSince1970)
             let exportDir = FileManager.default.temporaryDirectory.appendingPathComponent("Expense_Report_\(timestamp)", isDirectory: true)
+            let receiptsDir = exportDir.appendingPathComponent("Receipts", isDirectory: true)
+            
             try FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: receiptsDir, withIntermediateDirectories: true)
 
             var filenameMap: [UUID: [String]] = [:]
             var imageURLs: [URL] = []
@@ -192,7 +195,9 @@ struct ExportView: View {
                         let ext = srcURL.pathExtension.isEmpty ? "jpg" : srcURL.pathExtension
                         let suffix = (i == 0) ? "" : "_\(i + 1)"
                         let newName = "\(baseName)\(suffix).\(ext)"
-                        let dstURL = exportDir.appendingPathComponent(newName)
+                        
+                        // Save to Receipts subfolder
+                        let dstURL = receiptsDir.appendingPathComponent(newName)
 
                         // Copy (overwrite if exists)
                         if FileManager.default.fileExists(atPath: dstURL.path) {
@@ -200,7 +205,10 @@ struct ExportView: View {
                         }
                         try FileManager.default.copyItem(at: srcURL, to: dstURL)
 
-                        exportedNames.append(newName)
+                        exportedNames.append(newName) // Store filename only for PDF map (or relative path if needed, but PDF usually just wants the name for display)
+                        // Actually PDFExporter draws "#001" so it doesn't use this name for display.
+                        // But if we want to be precise, we can store "Receipts/..." but PDFExporter logic doesn't seem to use it for drawing images.
+                        
                         imageURLs.append(dstURL)
                     }
                     filenameMap[expense.id] = exportedNames
@@ -224,9 +232,8 @@ struct ExportView: View {
                 exportProgress = 0.95
             }
 
-            // Build share items: PDF first, then images
-            var items: [Any] = [pdfURL]
-            items.append(contentsOf: imageURLs)
+            // Build share items: Share the folder URL
+            let items: [Any] = [exportDir]
 
             await MainActor.run {
                 exportedItems = items
@@ -234,7 +241,7 @@ struct ExportView: View {
                 exportProgress = 1.0
                 isExporting = false
                 showShareSheet = true
-                print("✅ Exported \(totalExpenses) expenses with PDF and \(imageURLs.count) images")
+                print("✅ Exported \(totalExpenses) expenses with PDF and \(imageURLs.count) images to \(exportDir.path)")
             }
         } catch is CancellationError {
             await MainActor.run {

@@ -18,16 +18,17 @@ struct ReportView: View {
             // Subtitle and export button
             HStack {
                 Text(includeTravelDays ? "Nov 28-Dec 7" : "Dec 1-5")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(.secondary.opacity(0.6))
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
                 Spacer()
 
-                Button {
+                LargeIconButton(
+                    icon: "square.and.arrow.up",
+                    size: 24,
+                    color: .gray.opacity(0.8)
+                ) {
                     showExportSheet = true
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.title3)
-                        .foregroundStyle(.primary)
                 }
             }
             .padding(.horizontal)
@@ -44,6 +45,7 @@ struct ReportView: View {
             
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .fullScreenCover(isPresented: $showExportSheet) {
             ExportView()
         }

@@ -54,6 +54,13 @@ class PDFExporter {
                 currentY = margin
             }
             drawTotal(context: context.cgContext, expenses: expenses, y: &currentY)
+            
+            // Draw Footer
+            if currentY > pageHeight - margin - 100 {
+                context.beginPage()
+                currentY = margin
+            }
+            drawFooter(context: context.cgContext, y: &currentY)
         }
         
         return data
@@ -61,14 +68,57 @@ class PDFExporter {
     
     private func drawHeader(context: CGContext, y: inout CGFloat) {
         let title = "Expense Report"
-        let attributes: [NSAttributedString.Key: Any] = [
+        let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.boldSystemFont(ofSize: 24),
             .foregroundColor: UIColor.black
         ]
         
-        let titleSize = title.size(withAttributes: attributes)
-        title.draw(at: CGPoint(x: margin, y: y), withAttributes: attributes)
+        let titleSize = title.size(withAttributes: titleAttributes)
+        title.draw(at: CGPoint(x: margin, y: y), withAttributes: titleAttributes)
         y += titleSize.height + 20
+        
+        // Add Top Fields: Date, Employee Name, Signed
+        let fieldAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 10),
+            .foregroundColor: UIColor.black
+        ]
+        
+        let fields = [
+            "Date: _______________________",
+            "Employee Name: _______________________",
+            "Signed: _______________________"
+        ]
+        
+        let fieldHeight: CGFloat = 20
+        
+        for field in fields {
+            field.draw(at: CGPoint(x: margin, y: y), withAttributes: fieldAttributes)
+            y += fieldHeight
+        }
+        
+        y += 20 // Spacing before table
+    }
+
+    private func drawFooter(context: CGContext, y: inout CGFloat) {
+        y += 40 // Spacing before footer
+        
+        let fieldAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 10),
+            .foregroundColor: UIColor.black
+        ]
+        
+        let fields = [
+            "PRPL Manager: _______________________",
+            "Google Project #: _______________________",
+            "Signed: _______________________"
+        ]
+        
+        let fieldHeight: CGFloat = 25
+        
+        for field in fields {
+            field.draw(at: CGPoint(x: margin, y: y), withAttributes: fieldAttributes)
+            y += fieldHeight
+        }
     }
     
     private func drawTableHeader(context: CGContext, y: inout CGFloat) {
