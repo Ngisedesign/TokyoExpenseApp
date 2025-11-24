@@ -116,6 +116,7 @@ struct ExpenseListView: View {
                     }
                 }
             }
+            .frame(maxHeight: .infinity)
 
             // Action bar when in edit mode
             if isEditMode && !selectedExpenses.isEmpty {

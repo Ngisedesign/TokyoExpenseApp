@@ -84,11 +84,11 @@ struct BudgetTracker {
         case .perDiem:
             categoryExpenses = filteredExpenses.filter { $0.category == ExpenseCategory.food.rawValue }
         case .transport:
-            categoryExpenses = filteredExpenses.filter { $0.category == "Transport" }
+            categoryExpenses = filteredExpenses.filter { $0.category == ExpenseCategory.transport.rawValue }
         case .flight:
-            categoryExpenses = filteredExpenses.filter { $0.merchantName.lowercased().contains("flight") || $0.merchantName.lowercased().contains("airline") }
+            categoryExpenses = filteredExpenses.filter { $0.category == ExpenseCategory.flight.rawValue }
         case .hotel:
-            categoryExpenses = filteredExpenses.filter { $0.merchantName.lowercased().contains("hotel") || $0.merchantName.lowercased().contains("inn") }
+            categoryExpenses = filteredExpenses.filter { $0.category == ExpenseCategory.hotel.rawValue }
         }
 
         return categoryExpenses.reduce(0) { $0 + $1.amountUSD }
@@ -117,7 +117,7 @@ struct BudgetTracker {
 
         let calendar = Calendar.current
         let workDayExpenses = expenses.filter {
-            $0.isWorkDay && $0.category == "Transport"
+            $0.isWorkDay && $0.category == ExpenseCategory.transport.rawValue
         }
 
         for expense in workDayExpenses {
@@ -177,7 +177,7 @@ struct BudgetTracker {
     /// Calculate spending for today only
     static func spentToday(_ category: BudgetCategory, from expenses: [Expense]) -> Decimal {
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: DebugDateOverride.currentDate())
 
         let categoryExpenses: [Expense]
         switch category {
@@ -188,7 +188,7 @@ struct BudgetTracker {
             }
         case .transport:
             categoryExpenses = expenses.filter {
-                $0.category == "Transport" &&
+                $0.category == ExpenseCategory.transport.rawValue &&
                 calendar.startOfDay(for: $0.date) == today
             }
         default:
@@ -201,7 +201,7 @@ struct BudgetTracker {
     /// Calculate rollover from previous work days
     static func rolloverFromPreviousDays(_ category: BudgetCategory, from expenses: [Expense]) -> Decimal {
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: DebugDateOverride.currentDate())
 
         // Only calculate rollover for days before today
         let previousDays = allWorkDays().filter { calendar.startOfDay(for: $0) < today }
@@ -223,7 +223,7 @@ struct BudgetTracker {
             }
         case .transport:
             categoryExpenses = expenses.filter { expense in
-                expense.category == "Transport" &&
+                expense.category == ExpenseCategory.transport.rawValue &&
                 previousDays.contains { previousDay in
                     calendar.startOfDay(for: previousDay) == calendar.startOfDay(for: expense.date)
                 }

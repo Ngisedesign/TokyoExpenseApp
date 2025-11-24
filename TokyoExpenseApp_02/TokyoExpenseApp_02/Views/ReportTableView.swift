@@ -41,13 +41,10 @@ struct ReportTableView: View {
                     totalRow
                         .background(Color(uiColor: .systemGray6).opacity(0.3))
                 }
-                
-                Spacer()
             }
-            .padding(.bottom, 20)
             .frame(minWidth: colWidths.reduce(0, +) + 20, maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
     
     private var headerRow: some View {

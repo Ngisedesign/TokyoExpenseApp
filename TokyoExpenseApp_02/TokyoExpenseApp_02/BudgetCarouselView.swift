@@ -63,7 +63,9 @@ struct BudgetCarouselView: View {
                     .tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea(edges: .bottom)
         }
+        .ignoresSafeArea(edges: .bottom)
     }
 }
 
@@ -72,6 +74,7 @@ struct BudgetContentView: View {
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
     @AppStorage("includeTravelDays") private var includeTravelDays = false
     @AppStorage("showYen") private var showYen = true
+    @AppStorage("debugDateOverrideTrigger") private var debugDateTrigger: Bool = false
     @State private var expandedCategories: Set<BudgetTracker.BudgetCategory> = []
 
     var body: some View {

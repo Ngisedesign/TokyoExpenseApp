@@ -42,8 +42,6 @@ struct ReportView: View {
             ReportTableView(expenses: filteredExpenses, showYen: showYen) { expense in
                 selectedExpense = expense
             }
-            
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .fullScreenCover(isPresented: $showExportSheet) {

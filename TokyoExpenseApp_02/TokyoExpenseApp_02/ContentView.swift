@@ -221,17 +221,21 @@ struct ContentView: View {
     @State private var showQuickCamera: Bool = false
     @State private var capturedImage: UIImage? = nil
     @State private var showBudgetView: Bool = false
+    @State private var showDebugMenu: Bool = false
     @AppStorage("showYen") private var showYen: Bool = true
+    @AppStorage("debugDateOverrideTrigger") private var debugDateTrigger: Bool = false
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
 
     // Food calculations
     private var foodSpentToday: Decimal {
-        BudgetTracker.spentToday(.perDiem, from: expenses)
+        _ = debugDateTrigger // Force recalculation when date override changes
+        return BudgetTracker.spentToday(.perDiem, from: expenses)
     }
 
     private var foodRollover: Decimal {
-        BudgetTracker.rolloverFromPreviousDays(.perDiem, from: expenses)
+        _ = debugDateTrigger // Force recalculation when date override changes
+        return BudgetTracker.rolloverFromPreviousDays(.perDiem, from: expenses)
     }
 
     private var foodTotalSpent: Decimal {
@@ -244,11 +248,13 @@ struct ContentView: View {
 
     // Transport calculations
     private var transportSpentToday: Decimal {
-        BudgetTracker.spentToday(.transport, from: expenses)
+        _ = debugDateTrigger // Force recalculation when date override changes
+        return BudgetTracker.spentToday(.transport, from: expenses)
     }
 
     private var transportRollover: Decimal {
-        BudgetTracker.rolloverFromPreviousDays(.transport, from: expenses)
+        _ = debugDateTrigger // Force recalculation when date override changes
+        return BudgetTracker.rolloverFromPreviousDays(.transport, from: expenses)
     }
 
     private var transportTotalSpent: Decimal {
@@ -263,9 +269,38 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading) {
             HStack {
-                LargeIconButton(icon: "line.3.horizontal", size: 48) {
-                    showBudgetView = true
+                // Custom button with simultaneous tap and long press
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundStyle(.black)
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 1.0)
+                                .onEnded { _ in
+                                    let generator = UINotificationFeedbackGenerator()
+                                    generator.notificationOccurred(.success)
+                                    showDebugMenu = true
+                                }
+                        )
+                        .onTapGesture {
+                            showBudgetView = true
+                        }
+
+                    #if DEBUG
+                    // Small debug indicator - triple tap to open debug menu
+                    Circle()
+                        .fill(.orange)
+                        .frame(width: 8, height: 8)
+                        .offset(x: -4, y: 4)
+                        .onTapGesture(count: 3) {
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.success)
+                            showDebugMenu = true
+                        }
+                    #endif
                 }
+
                 Spacer()
                 LargeIconButton(icon: "plus", size: 48) {
                     isPresentingAdd = true
@@ -294,7 +329,7 @@ struct ContentView: View {
                         }
                     }
                     Spacer()
-                    // Total remaining budget
+                    // Total remaining budget for Food
                     Text(CurrencyFormatter.format(usd: foodRemainingTotal, showYen: showYen, includeDecimals: false))
                         .foregroundStyle(foodRemainingTotal >= 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
                         .padding(.trailing, 5)
@@ -319,7 +354,7 @@ struct ContentView: View {
                         }
                     }
                     Spacer()
-                    // Total remaining budget
+                    // Total remaining budget for Transport
                     Text(CurrencyFormatter.format(usd: transportRemainingTotal, showYen: showYen, includeDecimals: false))
                         .foregroundStyle(transportRemainingTotal >= 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
                         .padding(.trailing, 5)
@@ -352,6 +387,9 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showQuickCamera) {
             AddEntryView(autoLaunchCamera: true)
+        }
+        .sheet(isPresented: $showDebugMenu) {
+            DebugMenuView()
         }
     }
 }
