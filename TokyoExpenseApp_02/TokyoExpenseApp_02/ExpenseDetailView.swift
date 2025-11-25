@@ -2,6 +2,41 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 
+// MARK: - REFACTORING OPPORTUNITY
+// ============================================================================
+// This view shares significant code with AddEntryView. Consider extracting:
+//
+// 1. SHARED COMPONENTS (identical or nearly identical):
+//    - ExpenseFormHeader: Header with X and checkmark buttons (lines 42-58)
+//    - ExpenseImageSection: Receipt image display (lines 71-95)
+//    - ExpenseCategoryAndDatePicker: Category pills + date picker (lines 98-127)
+//    - ExpenseMerchantField: Merchant text field (lines 134-142)
+//    - ExpenseDescriptionField: Description text field (lines 145-153)
+//    - ExpenseAmountField: Amount input with currency toggle (lines 156-202)
+//
+// 2. SHARED LOGIC (identical logic in both views):
+//    - Currency conversion logic (lines 158-183) - IDENTICAL to AddEntryView
+//    - Validation rules (lines 285-288)
+//    - Image management (lines 325-350)
+//
+// 3. SHARED STATE (could be managed by @Observable ExpenseFormData):
+//    - merchantName, expenseDescription, date, amountString, category
+//    - currency enum and conversion state
+//    - Image picker state
+//
+// 4. DIFFERENCES TO PRESERVE:
+//    - ExpenseDetailView: Shows read-only additional info (lines 204-256)
+//    - ExpenseDetailView: Updates existing expense vs AddEntryView creates new
+//    - AddEntryView: Has OCR/AI processing
+//    - AddEntryView: Has PDF import
+//
+// BENEFITS:
+//    - Guaranteed UI consistency between add and edit
+//    - Single place to fix bugs or add features
+//    - ~60% reduction in code duplication
+//    - Easier to test with shared components
+// ============================================================================
+
 struct ExpenseDetailView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -38,6 +73,8 @@ struct ExpenseDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // REFACTOR: Extract to ExpenseFormHeader component (see AddEntryView lines 104-128)
+            // This is nearly identical except for the save action (synchronous vs async)
             // Header
             HStack {
                 LargeIconButton(icon: "xmark") {
@@ -94,13 +131,16 @@ struct ExpenseDetailView: View {
                                     }
                             }
 
+                            // REFACTOR: Extract to ExpenseCategoryAndDatePicker component
+                            // Nearly identical to AddEntryView (lines 199-233) except label font (.subheadline vs .headline)
+                            // Could be unified with a font style parameter
                             // Right: Categories (Wrapping)
                             VStack(alignment: .leading, spacing: 16) {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Category")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
-                                    
+
                                     FlowLayout(spacing: 8) {
                                         ForEach(ExpenseCategory.allCases, id: \.self) { cat in
                                             CategoryPill(
@@ -118,7 +158,7 @@ struct ExpenseDetailView: View {
                                     Text("Date")
                                         .font(.headline)
                                         .foregroundStyle(.black)
-                                    
+
                                     DatePicker("", selection: $date, displayedComponents: .date)
                                         .labelsHidden()
                                         .datePickerStyle(.compact)
@@ -128,8 +168,10 @@ struct ExpenseDetailView: View {
                         }
                         .padding(.horizontal)
 
+                        // REFACTOR: All fields below (Merchant, Description, Amount) can be extracted
                         // Form Fields
                         VStack(alignment: .leading, spacing: 20) {
+                            // REFACTOR: Extract to ExpenseMerchantField (see AddEntryView lines 235-269)
                             // Merchant Name
                             LabeledField(label: "Merchant") {
                                 TextField("Merchant name", text: $merchantName)
@@ -141,6 +183,7 @@ struct ExpenseDetailView: View {
                                     )
                             }
 
+                            // REFACTOR: Extract to ExpenseDescriptionField (see AddEntryView lines 271-303)
                             // Description
                             LabeledField(label: "Description") {
                                 TextField("What was this for?", text: $expenseDescription)
@@ -152,10 +195,13 @@ struct ExpenseDetailView: View {
                                     )
                             }
 
+                            // REFACTOR: Extract to ExpenseAmountField (see AddEntryView lines 305-362)
                             // Amount
                             LabeledField(label: "Amount") {
                                 HStack(spacing: 8) {
                                     Button {
+                                        // REFACTOR: Extract currency toggle logic to CurrencyConverter utility
+                                        // This is IDENTICAL to AddEntryView (lines 364-389)
                                         // Toggle currency and convert amount
                                         let currentAmount = Decimal(string: amountString) ?? 0
                                         let rate = expense.exchangeRate
@@ -201,6 +247,8 @@ struct ExpenseDetailView: View {
                                 )
                             }
 
+                            // NOTE: This section is unique to ExpenseDetailView (read-only data display)
+                            // AddEntryView doesn't have this since there's no existing expense to show
                             // Additional Info
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Additional Information")
@@ -282,11 +330,15 @@ struct ExpenseDetailView: View {
         }
     }
 
+    // REFACTOR: Extract validation to shared utility or ExpenseFormViewModel
+    // Similar logic in AddEntryView (lines 551-578) but with additional date validation
     var canSave: Bool {
         !merchantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !amountString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    // REFACTOR: Extract save logic to ExpenseFormViewModel or repository pattern
+    // This updates existing expense; AddEntryView creates new (lines 770-841)
     private func saveChanges() {
         // Update expense properties
         expense.merchantName = merchantName
@@ -322,6 +374,8 @@ struct ExpenseDetailView: View {
         }
     }
 
+    // REFACTOR: Extract image management to shared ImageManager or ExpenseFormViewModel
+    // Similar logic in AddEntryView (lines 616-636) but for saving new image vs replacing
     private func replaceReceiptImage(with newImage: UIImage) {
         guard let newFilename = ImageManager.shared.saveImage(newImage) else {
             print("❌ Failed to save new receipt image")
