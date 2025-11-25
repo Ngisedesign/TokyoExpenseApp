@@ -15,7 +15,7 @@ struct BudgetCategoryCard: View {
     }
 
     private var budget: Decimal {
-        category.budget
+        category.budget(from: expenses, includeTravelDays: includeTravelDays)
     }
 
     private var remaining: Decimal {

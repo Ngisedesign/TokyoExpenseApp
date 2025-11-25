@@ -1,8 +1,29 @@
 import SwiftUI
 import PhotosUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct AddEntryView: View {
+    static var localTripStartDate: Date {
+        // Trip starts Nov 28, 2025 (departure to Tokyo)
+        var comps = DateComponents()
+        comps.year = 2025
+        comps.month = 11
+        comps.day = 28
+        comps.hour = 12
+        return Calendar.current.date(from: comps) ?? Date()
+    }
+
+    static var localTripEndDate: Date {
+        // Trip ends Dec 7, 2025 (return from Tokyo)
+        var comps = DateComponents()
+        comps.year = 2025
+        comps.month = 12
+        comps.day = 7
+        comps.hour = 12
+        return Calendar.current.date(from: comps) ?? Date()
+    }
+
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) private var modelContext
 
@@ -14,6 +35,7 @@ struct AddEntryView: View {
     @State private var selectedImageUI: UIImage? = nil
     @State private var showCamera: Bool = false
     @State private var showLibraryPicker: Bool = false
+    @State private var showDocumentPicker: Bool = false
     @State private var category: ExpenseCategory = .food
     
     var autoLaunchCamera: Bool = false
@@ -111,6 +133,18 @@ struct AddEntryView: View {
                                     showCamera = true
                                 } label: {
                                     Image(systemName: "camera.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(.gray.opacity(0.8))
+                                        .padding(8)
+                                }
+                                .background(.black.opacity(0.05))
+                                .clipShape(Circle())
+
+                                // PDF Import button
+                                Button {
+                                    showDocumentPicker = true
+                                } label: {
+                                    Image(systemName: "doc.fill")
                                         .font(.system(size: 16, weight: .bold))
                                         .foregroundStyle(.gray.opacity(0.8))
                                         .padding(8)
@@ -305,6 +339,9 @@ struct AddEntryView: View {
             PhotoLibraryPicker(selectedImage: $selectedImageUI)
                 .edgesIgnoringSafeArea(.all)
         }
+        .sheet(isPresented: $showDocumentPicker) {
+            DocumentPicker(selectedImage: $selectedImageUI)
+        }
         .onChange(of: selectedImageUI) { oldValue, newValue in
             // Trigger receipt parsing whenever image changes (camera or library)
             if let image = newValue {
@@ -359,8 +396,8 @@ struct AddEntryView: View {
         let tripStart = AddEntryView.localTripStartDate
         let tripEnd = AddEntryView.localTripEndDate
 
-        // Allow dates within trip range plus 7 days buffer on each side
-        let minDate = calendar.date(byAdding: .day, value: -7, to: tripStart)!
+        // Allow dates within trip range plus 30 days buffer before (for flight/hotel purchases) and 7 days after
+        let minDate = calendar.date(byAdding: .day, value: -30, to: tripStart)!
         let maxDate = calendar.date(byAdding: .day, value: 7, to: tripEnd)!
 
         guard date >= minDate && date <= maxDate else {
@@ -394,13 +431,13 @@ struct AddEntryView: View {
         let tripStart = AddEntryView.localTripStartDate
         let tripEnd = AddEntryView.localTripEndDate
 
-        let minDate = calendar.date(byAdding: .day, value: -7, to: tripStart)!
+        let minDate = calendar.date(byAdding: .day, value: -30, to: tripStart)!
         let maxDate = calendar.date(byAdding: .day, value: 7, to: tripEnd)!
 
         if date < minDate || date > maxDate {
             let dateFormatter = DateFormatter()
             dateFormatter.dateStyle = .medium
-            return "Date must be within trip dates (\(dateFormatter.string(from: tripStart)) - \(dateFormatter.string(from: tripEnd)))."
+            return "Date must be within trip dates (\(dateFormatter.string(from: tripStart)) - \(dateFormatter.string(from: tripEnd))), allowing 30 days before for advance purchases."
         }
 
         return nil
@@ -593,6 +630,93 @@ struct AddEntryView: View {
 
 
 } // End of struct AddEntryView
+
+// MARK: - Document Picker for PDFs
+
+struct DocumentPicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Environment(\.dismiss) var dismiss
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf, .image], asCopy: true)
+        picker.delegate = context.coordinator
+        picker.allowsMultipleSelection = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: DocumentPicker
+
+        init(_ parent: DocumentPicker) {
+            self.parent = parent
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else { return }
+
+            // Check if it's a PDF
+            if url.pathExtension.lowercased() == "pdf" {
+                // Convert PDF to image
+                if let image = PDFConverter.convertPDFToImage(url: url) {
+                    DispatchQueue.main.async {
+                        self.parent.selectedImage = image
+                        self.parent.dismiss()
+                    }
+                }
+            } else if let image = UIImage(contentsOfFile: url.path) {
+                // Regular image
+                DispatchQueue.main.async {
+                    self.parent.selectedImage = image
+                    self.parent.dismiss()
+                }
+            }
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.dismiss()
+        }
+    }
+}
+
+// MARK: - PDF Converter
+
+struct PDFConverter {
+    /// Convert first page of PDF to UIImage
+    static func convertPDFToImage(url: URL) -> UIImage? {
+        guard url.startAccessingSecurityScopedResource() else {
+            print("❌ Could not access PDF file")
+            return nil
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        guard let document = CGPDFDocument(url as CFURL),
+              let page = document.page(at: 1) else {
+            print("❌ Could not load PDF page")
+            return nil
+        }
+
+        let pageRect = page.getBoxRect(.mediaBox)
+        let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+
+        let image = renderer.image { context in
+            UIColor.white.set()
+            context.fill(pageRect)
+
+            context.cgContext.translateBy(x: 0, y: pageRect.size.height)
+            context.cgContext.scaleBy(x: 1.0, y: -1.0)
+            context.cgContext.drawPDFPage(page)
+        }
+
+        print("✅ Converted PDF to image: \(pageRect.size)")
+        return image
+    }
+}
 
 #Preview {
     AddEntryView()
