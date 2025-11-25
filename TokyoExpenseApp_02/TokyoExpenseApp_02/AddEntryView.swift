@@ -4,6 +4,41 @@ import SwiftData
 import UniformTypeIdentifiers
 import PDFKit
 
+// MARK: - REFACTORING OPPORTUNITY
+// ============================================================================
+// This view shares significant code with ExpenseDetailView. Consider extracting:
+//
+// 1. SHARED COMPONENTS:
+//    - ExpenseFormHeader: Header with X and checkmark buttons (lines 69-90)
+//    - ExpenseImageSection: Receipt image display (lines 100-130)
+//    - ExpenseCategoryAndDatePicker: Category pills + date picker (lines 161-192)
+//    - ExpenseMerchantField: Merchant text field with validation (lines 194-225)
+//    - ExpenseDescriptionField: Description text field (lines 227-256)
+//    - ExpenseAmountField: Amount input with currency toggle (lines 258-312)
+//
+// 2. SHARED LOGIC (extract to ExpenseFormViewModel or utility):
+//    - Currency conversion logic (lines 314-335)
+//    - Validation rules (lines 501-564)
+//    - Image management (lines 566-586)
+//    - Exchange rate handling (lines 728-744)
+//
+// 3. SHARED STATE (extract to @Observable class ExpenseFormData):
+//    - merchant, expenseDescription, date, amountString, category
+//    - currency enum and conversion state
+//
+// 4. DIFFERENCES TO PRESERVE:
+//    - AddEntryView: OCR processing (lines 587-718)
+//    - AddEntryView: PDF import (lines 447-467)
+//    - AddEntryView: Trip date validation (lines 516-525, 550-561)
+//    - ExpenseDetailView: Shows read-only additional info
+//
+// BENEFITS:
+//    - Single source of truth for form UI and behavior
+//    - Easier to maintain consistency between add/edit flows
+//    - Reduced code duplication (~60% of code is shared)
+//    - Easier testing with extracted view models
+// ============================================================================
+
 struct AddEntryView: View {
     static var localTripStartDate: Date {
         // Trip starts Nov 28, 2025 (departure to Tokyo)
@@ -66,6 +101,9 @@ struct AddEntryView: View {
     @State private var bugWiggle: Bool = false
     @State private var validationError: String? = nil
 
+    // REFACTOR: Extract to ExpenseFormHeader component
+    // This is identical in ExpenseDetailView (lines 42-58)
+    // Proposed signature: ExpenseFormHeader(canSave: Bool, onCancel: () -> Void, onSave: () -> Void)
     private var headerView: some View {
         HStack {
             LargeIconButton(icon: "xmark") {
@@ -158,6 +196,9 @@ struct AddEntryView: View {
         .padding(8)
     }
 
+    // REFACTOR: Extract to ExpenseCategoryAndDatePicker component
+    // Nearly identical in ExpenseDetailView (lines 98-127) with minor label styling differences
+    // Proposed signature: ExpenseCategoryAndDatePicker(category: Binding<ExpenseCategory>, date: Binding<Date>)
     private var categoriesAndDateSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
@@ -191,6 +232,9 @@ struct AddEntryView: View {
         }
     }
 
+    // REFACTOR: Extract to ExpenseMerchantField component
+    // Similar in ExpenseDetailView (lines 134-142) but without placeholder/review badges
+    // Proposed: ExpenseMerchantField(text: Binding<String>, isPlaceholder: Bool = false, showReviewBadge: Bool = false)
     private var merchantField: some View {
         LabeledField(label: "Merchant", spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
@@ -224,6 +268,9 @@ struct AddEntryView: View {
         .padding(.horizontal)
     }
 
+    // REFACTOR: Extract to ExpenseDescriptionField component
+    // Similar in ExpenseDetailView (lines 145-153) but without AI badge
+    // Proposed: ExpenseDescriptionField(text: Binding<String>, isAIGenerated: Bool = false)
     private var descriptionField: some View {
         LabeledField(label: "Description", spacing: 8) {
             HStack {
@@ -255,6 +302,9 @@ struct AddEntryView: View {
         .padding(.horizontal)
     }
 
+    // REFACTOR: Extract to ExpenseAmountField component
+    // Identical in ExpenseDetailView (lines 156-202)
+    // Proposed: ExpenseAmountField(amount: Binding<String>, currency: Binding<Currency>, exchangeRate: Decimal, onToggleCurrency: () -> Void)
     private var amountField: some View {
         LabeledField(label: "Amount", spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
@@ -311,6 +361,10 @@ struct AddEntryView: View {
         .padding(.leading, 4)
     }
 
+    // REFACTOR: Extract to CurrencyConverter utility or ExpenseFormViewModel
+    // This logic is duplicated in ExpenseDetailView (lines 158-183)
+    // The only difference is the exchange rate source (aiExchangeRate vs expense.exchangeRate)
+    // Proposed: CurrencyConverter.toggle(from:to:amount:rate:) -> String
     private func toggleCurrency() {
         let currentAmount = Decimal(string: amountString) ?? 0
         let rate = aiExchangeRate ?? ExchangeRateService.shared.getCachedRate(for: date) ?? BudgetTracker.defaultExchangeRate
