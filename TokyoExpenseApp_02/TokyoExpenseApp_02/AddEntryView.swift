@@ -203,7 +203,7 @@ struct AddEntryView: View {
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)
-                                    .background(Capsule().fill(.blue))
+                                    .background(Capsule().fill(.black.opacity(0.7)))
                             }
                         }
                         .padding(12)

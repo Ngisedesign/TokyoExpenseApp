@@ -182,12 +182,12 @@ struct ReportTableView: View {
     
     private func expenseCategoryColor(_ category: String) -> Color {
         switch category {
-        case "Food": return .blue
-        case "Transport": return .green
-        case "Hotel": return .purple
-        case "Flight": return .cyan
-        case "Other": return .gray
-        default: return .gray
+        case "Food": return Color(hue: 0.58, saturation: 0.45, brightness: 0.85) // Desaturated blue
+        case "Transport": return Color(hue: 0.33, saturation: 0.40, brightness: 0.70) // Desaturated green
+        case "Hotel": return Color(hue: 0.75, saturation: 0.40, brightness: 0.75) // Desaturated purple
+        case "Flight": return Color(hue: 0.53, saturation: 0.45, brightness: 0.80) // Desaturated cyan
+        case "Other": return Color(hue: 0.0, saturation: 0.0, brightness: 0.60) // Desaturated gray
+        default: return Color(hue: 0.0, saturation: 0.0, brightness: 0.60)
         }
     }
     

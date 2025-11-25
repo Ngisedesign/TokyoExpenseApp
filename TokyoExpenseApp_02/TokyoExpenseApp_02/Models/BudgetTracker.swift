@@ -59,10 +59,10 @@ struct BudgetTracker {
 
         var color: Color {
             switch self {
-            case .perDiem: return .blue
-            case .transport: return .green
-            case .flight: return .purple
-            case .hotel: return .orange
+            case .perDiem: return Color(hue: 0.58, saturation: 0.45, brightness: 0.85) // Desaturated blue
+            case .transport: return Color(hue: 0.33, saturation: 0.40, brightness: 0.70) // Desaturated green
+            case .flight: return Color(hue: 0.53, saturation: 0.45, brightness: 0.80) // Desaturated cyan
+            case .hotel: return Color(hue: 0.75, saturation: 0.40, brightness: 0.75) // Desaturated purple
             }
         }
     }

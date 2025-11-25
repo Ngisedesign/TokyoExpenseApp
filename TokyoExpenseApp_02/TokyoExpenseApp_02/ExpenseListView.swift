@@ -39,6 +39,7 @@ struct ExpenseListView: View {
                 }
                 .font(.body)
                 .fontWeight(.medium)
+                .foregroundStyle(.primary)
             }
             .padding(.horizontal)
             .padding(.top, 16)
@@ -55,6 +56,7 @@ struct ExpenseListView: View {
                             .opacity(selectedCategory == nil ? 1 : 0.5)
                             .fontWeight(selectedCategory == nil ? .semibold : .regular)
                     }
+                    .buttonStyle(.plain)
 
                     ForEach(ExpenseCategory.allCases, id: \.self) { cat in
                         Button {
@@ -66,6 +68,7 @@ struct ExpenseListView: View {
                                 .opacity(selectedCategory == cat ? 1 : 0.5)
                                 .fontWeight(selectedCategory == cat ? .semibold : .regular)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)
@@ -86,7 +89,7 @@ struct ExpenseListView: View {
                                 } label: {
                                     Image(systemName: selectedExpenses.contains(expense.id) ? "checkmark.circle.fill" : "circle")
                                         .font(.title2)
-                                        .foregroundStyle(selectedExpenses.contains(expense.id) ? .blue : .secondary)
+                                        .foregroundStyle(selectedExpenses.contains(expense.id) ? .primary : .secondary)
                                 }
                                 .buttonStyle(.plain)
                                 .frame(width: 28, height: 28)

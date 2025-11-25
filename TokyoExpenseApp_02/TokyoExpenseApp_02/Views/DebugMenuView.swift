@@ -53,7 +53,7 @@ struct DebugMenuView: View {
                     VStack(spacing: 12) {
                         HStack {
                             Image(systemName: "chart.bar.fill")
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.secondary)
                                 .frame(width: 30)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(dataSummary)
@@ -86,7 +86,7 @@ struct DebugMenuView: View {
                     VStack(spacing: 12) {
                         HStack {
                             Image(systemName: "calendar")
-                                .foregroundStyle(isDateOverrideActive ? .orange : .blue)
+                                .foregroundStyle(isDateOverrideActive ? .orange : .secondary)
                                 .frame(width: 30)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(currentDateDescription)
@@ -114,7 +114,7 @@ struct DebugMenuView: View {
                                     Spacer()
                                 }
                                 .padding(.vertical, 12)
-                                .background(isDateOverrideActive ? Color(.secondarySystemGroupedBackground) : Color.blue)
+                                .background(isDateOverrideActive ? Color(.secondarySystemGroupedBackground) : Color.black)
                                 .foregroundColor(isDateOverrideActive ? .secondary : .white)
                                 .cornerRadius(10)
                             }
@@ -155,7 +155,7 @@ struct DebugMenuView: View {
                         Button(action: generateSampleData) {
                             HStack {
                                 Image(systemName: "wand.and.stars")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(.secondary)
                                     .frame(width: 30)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Generate Sample Data")
