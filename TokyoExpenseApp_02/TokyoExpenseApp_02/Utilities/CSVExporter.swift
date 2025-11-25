@@ -29,8 +29,8 @@ class CSVExporter {
                 expense.category,
                 expense.merchantName.csvEscaped,
                 expense.expenseDescription.csvEscaped,
-                "¥\(expense.amountJPY)",
-                "$\(expense.amountUSD)",
+                "¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))",
+                "$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))",
                 receiptFilenames
             ].joined(separator: ",")
 
@@ -84,8 +84,8 @@ class CSVExporter {
                 expense.category,
                 expense.merchantName.csvEscaped,
                 expense.expenseDescription.csvEscaped,
-                "¥\(expense.amountJPY)",
-                "$\(expense.amountUSD)",
+                "¥\(expense.amountJPY.formatted(.number.precision(.fractionLength(0))))",
+                "$\(expense.amountUSD.formatted(.number.precision(.fractionLength(2))))",
                 receiptFilenames
             ].joined(separator: ",")
 
