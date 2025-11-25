@@ -91,19 +91,19 @@ struct TotalBudgetBar: View {
             let hotelBudgetWidth = adjustedWidth(hotelBudgetWidthRaw, hasAmount: hotelNormalAmount > 0, minSegmentWidth: minSegmentWidth)
             let hotelOverflowWidth = adjustedWidth(hotelOverflowWidthRaw, hasAmount: hotelOverflow > 0, minSegmentWidth: minSegmentWidth)
 
-            // Calculate offsets with adjusted widths
-            let transportStart = foodBudgetWidth + foodOverflowWidth
-            let transportOverflowStart = transportStart + transportBudgetWidth
-            let flightStart = transportOverflowStart + transportOverflowWidth
-            let flightOverflowStart = flightStart + flightBudgetWidth
-            let hotelStart = flightOverflowStart + flightOverflowWidth
+            // Calculate offsets with adjusted widths (Order: Flight, Hotel, Food, Transport)
+            let hotelStart = flightBudgetWidth + flightOverflowWidth
             let hotelOverflowStart = hotelStart + hotelBudgetWidth
+            let foodStart = hotelOverflowStart + hotelOverflowWidth
+            let foodOverflowStart = foodStart + foodBudgetWidth
+            let transportStart = foodOverflowStart + foodOverflowWidth
+            let transportOverflowStart = transportStart + transportBudgetWidth
 
             // Icon positions (center of normal portion only) with adjusted widths
-            let foodCenterX = max(14, min(foodBudgetWidth / 2, width - 14))
-            let transportCenterX = max(14, min(transportStart + transportBudgetWidth / 2, width - 14))
-            let flightCenterX = max(14, min(flightStart + flightBudgetWidth / 2, width - 14))
+            let flightCenterX = max(14, min(flightBudgetWidth / 2, width - 14))
             let hotelCenterX = max(14, min(hotelStart + hotelBudgetWidth / 2, width - 14))
+            let foodCenterX = max(14, min(foodStart + foodBudgetWidth / 2, width - 14))
+            let transportCenterX = max(14, min(transportStart + transportBudgetWidth / 2, width - 14))
 
             ZStack(alignment: .leading) {
                 // Background bar (rounded container)
@@ -112,47 +112,19 @@ struct TotalBudgetBar: View {
 
                 // Masked content: fills + icons
                 Group {
-                    // Inner fills with flat edges
+                    // Inner fills with flat edges (Order: Flight, Hotel, Food, Transport)
                     ZStack(alignment: .leading) {
-                        // Food budget portion (normal color)
-                        Rectangle()
-                            .fill(BudgetTracker.BudgetCategory.perDiem.color)
-                            .frame(width: foodBudgetWidth)
-
-                        // Food overflow portion (darker)
-                        if foodIsOver {
-                            Rectangle()
-                                .fill(BudgetTracker.BudgetCategory.perDiem.color.opacity(0.5))
-                                .frame(width: foodOverflowWidth)
-                                .offset(x: foodBudgetWidth)
-                        }
-
-                        // Transport budget portion (normal color)
-                        Rectangle()
-                            .fill(BudgetTracker.BudgetCategory.transport.color)
-                            .frame(width: transportBudgetWidth)
-                            .offset(x: transportStart)
-
-                        // Transport overflow portion (darker)
-                        if transportIsOver {
-                            Rectangle()
-                                .fill(BudgetTracker.BudgetCategory.transport.color.opacity(0.5))
-                                .frame(width: transportOverflowWidth)
-                                .offset(x: transportOverflowStart)
-                        }
-
                         // Flight budget portion (normal color)
                         Rectangle()
                             .fill(BudgetTracker.BudgetCategory.flight.color)
                             .frame(width: flightBudgetWidth)
-                            .offset(x: flightStart)
 
                         // Flight overflow portion (darker)
                         if flightIsOver {
                             Rectangle()
                                 .fill(BudgetTracker.BudgetCategory.flight.color.opacity(0.5))
                                 .frame(width: flightOverflowWidth)
-                                .offset(x: flightOverflowStart)
+                                .offset(x: flightBudgetWidth)
                         }
 
                         // Hotel budget portion (normal color)
@@ -168,21 +140,37 @@ struct TotalBudgetBar: View {
                                 .frame(width: hotelOverflowWidth)
                                 .offset(x: hotelOverflowStart)
                         }
+
+                        // Food budget portion (normal color)
+                        Rectangle()
+                            .fill(BudgetTracker.BudgetCategory.perDiem.color)
+                            .frame(width: foodBudgetWidth)
+                            .offset(x: foodStart)
+
+                        // Food overflow portion (darker)
+                        if foodIsOver {
+                            Rectangle()
+                                .fill(BudgetTracker.BudgetCategory.perDiem.color.opacity(0.5))
+                                .frame(width: foodOverflowWidth)
+                                .offset(x: foodOverflowStart)
+                        }
+
+                        // Transport budget portion (normal color)
+                        Rectangle()
+                            .fill(BudgetTracker.BudgetCategory.transport.color)
+                            .frame(width: transportBudgetWidth)
+                            .offset(x: transportStart)
+
+                        // Transport overflow portion (darker)
+                        if transportIsOver {
+                            Rectangle()
+                                .fill(BudgetTracker.BudgetCategory.transport.color.opacity(0.5))
+                                .frame(width: transportOverflowWidth)
+                                .offset(x: transportOverflowStart)
+                        }
                     }
 
-                    // Icons over segments (hide if too small)
-                    if foodBudgetWidth > 24 {
-                        Image(systemName: BudgetTracker.BudgetCategory.perDiem.icon)
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.95))
-                            .position(x: foodCenterX, y: height / 2)
-                    }
-                    if transportBudgetWidth > 24 {
-                        Image(systemName: BudgetTracker.BudgetCategory.transport.icon)
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.95))
-                            .position(x: transportCenterX, y: height / 2)
-                    }
+                    // Icons over segments (hide if too small) - Order: Flight, Hotel, Food, Transport
                     if flightBudgetWidth > 24 {
                         Image(systemName: BudgetTracker.BudgetCategory.flight.icon)
                             .font(.system(size: 18, weight: .bold))
@@ -195,25 +183,30 @@ struct TotalBudgetBar: View {
                             .foregroundStyle(.white.opacity(0.95))
                             .position(x: hotelCenterX, y: height / 2)
                     }
+                    if foodBudgetWidth > 24 {
+                        Image(systemName: BudgetTracker.BudgetCategory.perDiem.icon)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.95))
+                            .position(x: foodCenterX, y: height / 2)
+                    }
+                    if transportBudgetWidth > 24 {
+                        Image(systemName: BudgetTracker.BudgetCategory.transport.icon)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.95))
+                            .position(x: transportCenterX, y: height / 2)
+                    }
                 }
                 .compositingGroup()
             }
             .clipShape(RoundedRectangle(cornerRadius: height / 2, style: .continuous))
-            .overlay(alignment: .trailing) {
-                Text(CurrencyFormatter.format(usd: remaining, showYen: showYen, includeDecimals: false))
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    )
-                    .padding(.trailing, 4)
-            }
         }
         .frame(height: 44)
         .padding(.horizontal)
+    }
+
+    // Expose remaining budget for external display
+    var remainingBudget: Decimal {
+        remaining
     }
 }
 

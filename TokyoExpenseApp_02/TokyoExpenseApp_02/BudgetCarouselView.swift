@@ -77,14 +77,28 @@ struct BudgetContentView: View {
     @AppStorage("debugDateOverrideTrigger") private var debugDateTrigger: Bool = false
     @State private var expandedCategories: Set<BudgetTracker.BudgetCategory> = []
 
+    private var remainingBudget: Decimal {
+        let totalSpent = BudgetTracker.totalSpent(from: expenses, includeTravelDays: includeTravelDays)
+        return BudgetTracker.totalBudget - totalSpent
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Date subtitle with travel days toggle
-                travelDaysToggle
+                // Remaining budget display (moved above the bar)
+                Text("Remaining")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 10)
+                    .padding(.bottom, -2)
+
+                Text(CurrencyFormatter.format(usd: remainingBudget, showYen: showYen, includeDecimals: false))
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundColor(remainingBudget >= 0 ? Color.primary : Color.red)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal)
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 8)
 
                 // Total Budget Overview
                 TotalBudgetBar(
@@ -92,7 +106,12 @@ struct BudgetContentView: View {
                     includeTravelDays: includeTravelDays,
                     showYen: showYen
                 )
-                .padding(.bottom, 20)
+                .padding(.bottom, 10)
+
+                // Date subtitle with travel days toggle
+                travelDaysToggle
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
 
                 // Budget Categories
                 ForEach(BudgetTracker.BudgetCategory.allCases, id: \.self) { category in
@@ -173,3 +192,4 @@ struct BudgetContentView: View {
     BudgetCarouselView()
         .modelContainer(for: Expense.self)
 }
+
