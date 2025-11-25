@@ -39,7 +39,19 @@ class AnthropicService {
         config.timeoutIntervalForRequest = 30.0
         let session = URLSession(configuration: config)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError {
+            // Handle network-specific errors
+            if error.code == .timedOut {
+                throw AnthropicError.networkTimeout
+            } else if error.code == .notConnectedToInternet {
+                throw AnthropicError.noInternetConnection
+            } else {
+                throw error
+            }
+        }
 
         // Check response
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -345,21 +357,42 @@ enum AnthropicError: LocalizedError {
     case apiError(statusCode: Int, message: String)
     case noTextInResponse
     case invalidJSON
+    case networkTimeout
+    case noInternetConnection
 
     var errorDescription: String? {
         switch self {
         case .imageConversionFailed:
-            return "Failed to convert image to JPEG"
+            return "Unable to process receipt image. Please try taking another photo."
         case .invalidURL:
-            return "Invalid API URL"
+            return "Configuration error. Please contact support."
         case .invalidResponse:
-            return "Invalid response from API"
-        case .apiError(let statusCode, let message):
-            return "API Error (\(statusCode)): \(message)"
+            return "Received unexpected response from server. Please try again."
+        case .apiError(let statusCode, _):
+            return userFriendlyAPIError(statusCode: statusCode)
         case .noTextInResponse:
-            return "No text content in API response"
+            return "Unable to read receipt. Please ensure the image is clear and well-lit."
         case .invalidJSON:
-            return "Could not parse JSON from response"
+            return "Unable to process receipt data. Please try again or enter details manually."
+        case .networkTimeout:
+            return "Request timed out. Please check your internet connection and try again."
+        case .noInternetConnection:
+            return "No internet connection. Please connect to Wi-Fi or cellular data and try again."
+        }
+    }
+
+    private func userFriendlyAPIError(statusCode: Int) -> String {
+        switch statusCode {
+        case 401:
+            return "API key is invalid or expired. Please check your configuration."
+        case 429:
+            return "Too many requests. Please wait a moment and try again."
+        case 500...599:
+            return "Server error. Please try again in a few moments."
+        case 400:
+            return "Invalid request. The receipt image may be corrupted. Please try another photo."
+        default:
+            return "Unable to process receipt (Error \(statusCode)). Please try again or enter details manually."
         }
     }
 }

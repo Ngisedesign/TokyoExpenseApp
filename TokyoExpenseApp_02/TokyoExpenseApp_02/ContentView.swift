@@ -270,36 +270,21 @@ struct ContentView: View {
         VStack(alignment: .leading) {
             HStack {
                 // Custom button with simultaneous tap and long press
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundStyle(.black)
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 1.0)
-                                .onEnded { _ in
-                                    let generator = UINotificationFeedbackGenerator()
-                                    generator.notificationOccurred(.success)
-                                    showDebugMenu = true
-                                }
-                        )
-                        .onTapGesture {
-                            showBudgetView = true
-                        }
-
-                    #if DEBUG
-                    // Small debug indicator - triple tap to open debug menu
-                    Circle()
-                        .fill(.orange)
-                        .frame(width: 8, height: 8)
-                        .offset(x: -4, y: 4)
-                        .onTapGesture(count: 3) {
-                            let generator = UINotificationFeedbackGenerator()
-                            generator.notificationOccurred(.success)
-                            showDebugMenu = true
-                        }
-                    #endif
-                }
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundStyle(.black)
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 1.0)
+                            .onEnded { _ in
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.success)
+                                showDebugMenu = true
+                            }
+                    )
+                    .onTapGesture {
+                        showBudgetView = true
+                    }
 
                 Spacer()
                 LargeIconButton(icon: "plus", size: 48) {

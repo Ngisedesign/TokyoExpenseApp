@@ -33,6 +33,7 @@ struct AddEntryView: View {
     @State private var showBugDialog: Bool = false
     @State private var bugOffset: CGFloat = 500 // Start off-screen
     @State private var bugWiggle: Bool = false
+    @State private var validationError: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -46,9 +47,13 @@ struct AddEntryView: View {
                     icon: "checkmark",
                     color: canSave ? .black : .secondary
                 ) {
-                    Task {
-                        await saveExpense()
-                        dismiss()
+                    if let error = validateExpense() {
+                        validationError = error
+                    } else {
+                        Task {
+                            await saveExpense()
+                            dismiss()
+                        }
                     }
                 }
                 .disabled(!canSave)
@@ -280,6 +285,18 @@ struct AddEntryView: View {
                 Text(error)
             }
         }
+        .alert("Validation Error", isPresented: Binding(
+            get: { validationError != nil },
+            set: { if !$0 { validationError = nil } }
+        )) {
+            Button("OK", role: .cancel) {
+                validationError = nil
+            }
+        } message: {
+            if let error = validationError {
+                Text(error)
+            }
+        }
         .fullScreenCover(isPresented: $showCamera) {
             ImagePickerController(image: $selectedImageUI, sourceType: .camera)
                 .edgesIgnoringSafeArea(.all)
@@ -325,8 +342,68 @@ struct AddEntryView: View {
     }
 
     var canSave: Bool {
-        !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !amountYen.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // Merchant must not be empty
+        guard !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+
+        // Amount must be valid and > 0
+        guard !amountYen.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let amount = Decimal(string: amountYen),
+              amount > 0 else {
+            return false
+        }
+
+        // Date should be within reasonable range (trip dates + buffer)
+        let calendar = Calendar.current
+        let tripStart = AddEntryView.localTripStartDate
+        let tripEnd = AddEntryView.localTripEndDate
+
+        // Allow dates within trip range plus 7 days buffer on each side
+        let minDate = calendar.date(byAdding: .day, value: -7, to: tripStart)!
+        let maxDate = calendar.date(byAdding: .day, value: 7, to: tripEnd)!
+
+        guard date >= minDate && date <= maxDate else {
+            return false
+        }
+
+        return true
+    }
+
+    /// Validates expense and returns user-friendly error message if invalid
+    private func validateExpense() -> String? {
+        let trimmedMerchant = merchant.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedMerchant.isEmpty {
+            return "Please enter a merchant name."
+        }
+
+        let trimmedAmount = amountYen.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedAmount.isEmpty {
+            return "Please enter an amount."
+        }
+
+        guard let amount = Decimal(string: trimmedAmount) else {
+            return "Amount must be a valid number."
+        }
+
+        if amount <= 0 {
+            return "Amount must be greater than zero."
+        }
+
+        let calendar = Calendar.current
+        let tripStart = AddEntryView.localTripStartDate
+        let tripEnd = AddEntryView.localTripEndDate
+
+        let minDate = calendar.date(byAdding: .day, value: -7, to: tripStart)!
+        let maxDate = calendar.date(byAdding: .day, value: 7, to: tripEnd)!
+
+        if date < minDate || date > maxDate {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .medium
+            return "Date must be within trip dates (\(dateFormatter.string(from: tripStart)) - \(dateFormatter.string(from: tripEnd)))."
+        }
+
+        return nil
     }
 
     private func processReceiptImage(_ image: UIImage) async {
