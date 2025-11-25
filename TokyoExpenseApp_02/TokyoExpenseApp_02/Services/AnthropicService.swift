@@ -23,13 +23,29 @@ class AnthropicService {
             print("📸 Found merchant in image metadata: \(merchantFromMeta)")
         }
 
+        // Resize image if too large (Anthropic has ~5MB limit, we'll target ~3MB max)
+        let resizedImage = resizeImageIfNeeded(image)
+
         // Convert image to JPEG and base64
-        guard let imageData = image.jpegData(compressionQuality: 0.85) else {
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.85) else {
             throw AnthropicError.imageConversionFailed
         }
-        let base64Image = imageData.base64EncodedString()
 
-        print("📤 Sending image to Claude API (size: \(imageData.count / 1024)KB)")
+        // If still too large, reduce quality
+        let finalImageData: Data
+        if imageData.count > 4_000_000 { // ~4MB
+            print("⚠️ Image still large (\(imageData.count / 1024)KB), reducing quality")
+            guard let reducedData = resizedImage.jpegData(compressionQuality: 0.6) else {
+                throw AnthropicError.imageConversionFailed
+            }
+            finalImageData = reducedData
+        } else {
+            finalImageData = imageData
+        }
+
+        let base64Image = finalImageData.base64EncodedString()
+
+        print("📤 Sending image to Claude API (size: \(finalImageData.count / 1024)KB)")
 
         // Build the API request
         let request = try buildRequest(base64Image: base64Image)
@@ -99,6 +115,14 @@ What to look for:
 
 2. USD Total (if shown on the receipt):
    - Some card slips print both JPY and USD totals. If a USD total is printed, extract it.
+   - If ONLY a USD total is shown (e.g. US receipt), extract it as amount_usd.
+    - **Amount Extraction**:
+        - Look for the **TOTAL** amount.
+        - If the receipt is in **USD** (contains "$", "USD", or is from a US merchant), extract the amount as `amount_usd`.
+        - If the receipt is in **JPY** (contains "¥", "JPY", "円"), extract the amount as `amount`.
+        - **CRITICAL**: If you see a "$" symbol, it is USD. Do NOT convert it.
+        - If both currencies are present (e.g. credit card slip), prefer the **USD** amount as `amount_usd` and also extract the exchange rate if available.
+        - Ignore commas in numbers (e.g. "1,935.95" -> 1935.95).
 
 3. Exchange Rate (if shown):
    - If a JPY→USD exchange rate is printed (e.g., 1 USD = 150 JPY or ¥150 = $1), extract it as JPY per 1 USD.
@@ -125,13 +149,17 @@ What to look for:
    - If not visible/cropped, set to null
 
 6. Category (guess from context):
-   - "Food/Per Diem": Food items, restaurants, convenience stores, cafes, supermarkets
+   - "Food": Food items, restaurants, convenience stores, cafes, supermarkets
    - "Transport": Taxis, trains, buses, subway, ride-shares
+   - "Hotel": Accommodation, lodging, stay, hotel, inn, airbnb
+   - "Flight": Flights, airline tickets
    - "Other": Everything else
+   
+   CRITICAL: If the description or merchant suggests "Accommodation", "Lodging", or "Stay", you MUST categorize it as "Hotel".
 
 7. Description (generate simple, natural description):
    - Infer from receipt items, merchant type, and timestamp
-   - Simple categories: "Breakfast", "Lunch", "Dinner", "Snack", "Coffee", "Groceries", "Taxi", "Train", "Subway", "Convenience Store", etc.
+   - Simple categories: "Breakfast", "Lunch", "Dinner", "Snack", "Coffee", "Groceries", "Taxi", "Train", "Subway", "Convenience Store", "Accommodation", etc.
    - Use time of day to help infer meal type if applicable
    - Keep it SHORT (1-2 words max)
    - Examples:
@@ -141,6 +169,7 @@ What to look for:
      * Coffee shop → "Coffee"
      * Taxi receipt → "Taxi"
      * Train station → "Train"
+     * Hotel/Inn → "Accommodation"
    - If unclear from context, use generic: "Purchase", "Meal", "Transport"
 
 IMPORTANT:
@@ -160,7 +189,7 @@ CRITICAL: Return ONLY the JSON object below. No markdown, no explanations, no co
   "amount_usd": 12.34,
   "exchange_rate_jpy_per_usd": 150.0,
   "date": "2024-11-18 or null",
-  "category": "Food/Per Diem",
+  "category": "Food",
   "description": "Lunch",
   "confidence": 0.85
 }
@@ -259,6 +288,38 @@ CRITICAL: Return ONLY the JSON object below. No markdown, no explanations, no co
             exchangeRateJPYPerUSD: receiptData.exchangeRateJPYPerUSD.map { Decimal($0) },
             totalAmountUSD: receiptData.amountUSD.map { Decimal($0) }
         )
+    }
+
+    /// Resize image if it exceeds maximum dimensions
+    private func resizeImageIfNeeded(_ image: UIImage) -> UIImage {
+        let maxDimension: CGFloat = 2000 // Max width or height
+        let size = image.size
+
+        // Check if resize is needed
+        if size.width <= maxDimension && size.height <= maxDimension {
+            return image
+        }
+
+        print("📏 Original image size: \(size.width) x \(size.height)")
+
+        // Calculate new size maintaining aspect ratio
+        let scale: CGFloat
+        if size.width > size.height {
+            scale = maxDimension / size.width
+        } else {
+            scale = maxDimension / size.height
+        }
+
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        print("📐 Resizing to: \(newSize.width) x \(newSize.height)")
+
+        // Resize the image
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+
+        return resizedImage
     }
 
     /// Extract merchant name from image EXIF metadata

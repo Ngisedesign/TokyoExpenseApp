@@ -36,6 +36,22 @@ class ImageManager {
             return nil
         }
     }
+    
+    func saveRawData(_ data: Data, filename: String) -> Bool {
+        let fileURL = receiptsDirectory.appendingPathComponent(filename)
+        do {
+            try data.write(to: fileURL)
+            return true
+        } catch {
+            print("Error saving raw data: \(error)")
+            return false
+        }
+    }
+    
+    func fileExists(filename: String) -> Bool {
+        let fileURL = receiptsDirectory.appendingPathComponent(filename)
+        return fileManager.fileExists(atPath: fileURL.path)
+    }
 
     func loadImage(_ filename: String) -> UIImage? {
         let fileURL = receiptsDirectory.appendingPathComponent(filename)

@@ -61,6 +61,40 @@ class PDFExporter {
                 currentY = margin
             }
             drawFooter(context: context.cgContext, y: &currentY)
+            
+            // Append Receipts
+            for (index, expense) in expenses.enumerated() {
+                if let firstPath = expense.receiptImagePaths.first,
+                   let image = ImageManager.shared.loadImage(firstPath) {
+                    
+                    context.beginPage()
+                    currentY = margin
+                    
+                    // Draw Header
+                    let headerText = "Receipt #\(String(format: "%03d", index + 1)) - \(expense.merchantName)"
+                    let attributes: [NSAttributedString.Key: Any] = [
+                        .font: UIFont.boldSystemFont(ofSize: 18),
+                        .foregroundColor: UIColor.black
+                    ]
+                    headerText.draw(at: CGPoint(x: margin, y: currentY), withAttributes: attributes)
+                    currentY += 40
+                    
+                    // Draw Image (Scale to fit)
+                    let maxWidth = pageWidth - (margin * 2)
+                    let maxHeight = pageHeight - currentY - margin
+                    
+                    let aspectWidth = maxWidth / image.size.width
+                    let aspectHeight = maxHeight / image.size.height
+                    let aspectRatio = min(aspectWidth, aspectHeight)
+                    
+                    let scaledWidth = image.size.width * aspectRatio
+                    let scaledHeight = image.size.height * aspectRatio
+                    
+                    let x = margin + (maxWidth - scaledWidth) / 2
+                    
+                    image.draw(in: CGRect(x: x, y: currentY, width: scaledWidth, height: scaledHeight))
+                }
+            }
         }
         
         return data

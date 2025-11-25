@@ -12,7 +12,13 @@ struct ExpenseDetailView: View {
     @State private var expenseDescription: String
     @State private var date: Date
     @State private var category: ExpenseCategory
-    @State private var amountYen: String
+    @State private var amountString: String
+    
+    enum Currency {
+        case jpy
+        case usd
+    }
+    @State private var currency: Currency = .jpy
     @State private var showReplaceOptions = false
     @State private var showCamera = false
     @State private var showLibraryPicker = false
@@ -26,7 +32,8 @@ struct ExpenseDetailView: View {
         _expenseDescription = State(initialValue: expense.expenseDescription)
         _date = State(initialValue: expense.date)
         _category = State(initialValue: ExpenseCategory(rawValue: expense.category) ?? .food)
-        _amountYen = State(initialValue: String(describing: expense.amountJPY))
+        _amountString = State(initialValue: String(describing: expense.amountJPY))
+        _currency = State(initialValue: .jpy)
     }
 
     var body: some View {
@@ -148,15 +155,44 @@ struct ExpenseDetailView: View {
                             // Amount
                             LabeledField(label: "Amount") {
                                 HStack(spacing: 8) {
-                                    Text("¥")
-                                        .font(.body)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.secondary)
+                                    Button {
+                                        // Toggle currency and convert amount
+                                        let currentAmount = Decimal(string: amountString) ?? 0
+                                        let rate = expense.exchangeRate
+                                        
+                                        withAnimation {
+                                            if currency == .jpy {
+                                                // Switching JPY -> USD
+                                                currency = .usd
+                                                if currentAmount > 0 {
+                                                    let usdAmount = currentAmount / rate
+                                                    amountString = usdAmount.formatted(.number.precision(.fractionLength(2)).grouping(.never))
+                                                }
+                                            } else {
+                                                // Switching USD -> JPY
+                                                currency = .jpy
+                                                if currentAmount > 0 {
+                                                    let jpyAmount = currentAmount * rate
+                                                    // Round to whole number
+                                                    let nsAmount = NSDecimalNumber(decimal: jpyAmount)
+                                                    let handler = NSDecimalNumberHandler(roundingMode: .bankers, scale: 0, raiseOnExactness: false, raiseOnOverflow: false, raiseOnUnderflow: false, raiseOnDivideByZero: false)
+                                                    amountString = nsAmount.rounding(accordingToBehavior: handler).stringValue
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        Text(currency == .jpy ? "¥" : "$")
+                                            .font(.body)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.black)
+                                            .frame(width: 24)
+                                    }
+                                    .buttonStyle(.plain)
 
-                                    TextField("0", text: $amountYen)
+                                    TextField("0", text: $amountString)
                                         .font(.body) // Consistent font
                                         .fontWeight(.semibold)
-                                        .keyboardType(.numberPad)
+                                        .keyboardType(.decimalPad)
                                 }
                                 .padding()
                                 .background(
@@ -248,7 +284,7 @@ struct ExpenseDetailView: View {
 
     var canSave: Bool {
         !merchantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !amountYen.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !amountString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func saveChanges() {
@@ -262,11 +298,19 @@ struct ExpenseDetailView: View {
         expense.isWorkDay = BudgetTracker.isWorkDay(date)
 
         // Update amount if changed
-        if let newAmount = Decimal(string: amountYen) {
-            expense.amountJPY = newAmount
-
-            // Recalculate USD amount using existing exchange rate
-            expense.amountUSD = newAmount / expense.exchangeRate
+        if let newAmount = Decimal(string: amountString) {
+            if currency == .usd {
+                expense.amountUSD = newAmount
+                expense.amountJPY = newAmount * expense.exchangeRate
+                
+                // Round JPY to whole number
+                let nsAmount = NSDecimalNumber(decimal: expense.amountJPY)
+                let handler = NSDecimalNumberHandler(roundingMode: .bankers, scale: 0, raiseOnExactness: false, raiseOnOverflow: false, raiseOnUnderflow: false, raiseOnDivideByZero: false)
+                expense.amountJPY = nsAmount.rounding(accordingToBehavior: handler).decimalValue
+            } else {
+                expense.amountJPY = newAmount
+                expense.amountUSD = newAmount / expense.exchangeRate
+            }
         }
 
         // Save to context

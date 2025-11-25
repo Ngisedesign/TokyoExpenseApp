@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import SwiftData
 import UniformTypeIdentifiers
+import PDFKit
 
 struct AddEntryView: View {
     static var localTripStartDate: Date {
@@ -30,13 +31,21 @@ struct AddEntryView: View {
     @State private var merchant: String = ""
     @State private var expenseDescription: String = ""
     @State private var date: Date = .now
-    @State private var amountYen: String = ""
+    @State private var amountString: String = ""
 
     @State private var selectedImageUI: UIImage? = nil
     @State private var showCamera: Bool = false
     @State private var showLibraryPicker: Bool = false
     @State private var showDocumentPicker: Bool = false
     @State private var category: ExpenseCategory = .food
+    
+    enum Currency {
+        case jpy
+        case usd
+    }
+    @State private var currency: Currency = .jpy
+    @State private var originalPDFData: Data? = nil
+
     
     var autoLaunchCamera: Bool = false
     
@@ -57,323 +66,434 @@ struct AddEntryView: View {
     @State private var bugWiggle: Bool = false
     @State private var validationError: String? = nil
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header with dismiss and save
-            HStack {
-                LargeIconButton(icon: "xmark") {
-                    dismiss()
+    private var headerView: some View {
+        HStack {
+            LargeIconButton(icon: "xmark") {
+                dismiss()
+            }
+            Spacer()
+            LargeIconButton(
+                icon: "checkmark",
+                color: canSave ? .black : .secondary
+            ) {
+                if let error = validateExpense() {
+                    validationError = error
+                } else {
+                    Task {
+                        await saveExpense()
+                        dismiss()
+                    }
                 }
-                Spacer()
-                LargeIconButton(
-                    icon: "checkmark",
-                    color: canSave ? .black : .secondary
+            }
+            .disabled(!canSave)
+        }
+    }
+
+    private func imageAndCategoriesView(geometry: GeometryProxy) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            receiptImageSection(geometry: geometry)
+            categoriesAndDateSection
+        }
+        .padding(.horizontal)
+    }
+
+    private func receiptImageSection(geometry: GeometryProxy) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            if let image = selectedImageUI {
+                // Show captured image
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: geometry.size.width * 0.45)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(.black.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    .onTapGesture {
+                        showLibraryPicker = true
+                    }
+            } else {
+                ImagePlaceholder(
+                    icon: "photo.fill",
+                    text: "Add Image",
+                    height: 160
                 ) {
-                    if let error = validateExpense() {
-                        validationError = error
-                    } else {
-                        Task {
-                            await saveExpense()
-                            dismiss()
+                    showLibraryPicker = true
+                }
+                .frame(width: 120)
+            }
+
+            imageCaptureButtons
+        }
+    }
+
+    private var imageCaptureButtons: some View {
+        HStack(spacing: 4) {
+            // Camera button
+            Button {
+                showCamera = true
+            } label: {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.gray.opacity(0.8))
+                    .padding(8)
+                    .background(Circle().fill(.white))
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            }
+
+            // PDF Import button
+            Button {
+                showDocumentPicker = true
+            } label: {
+                Image(systemName: "doc.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.gray.opacity(0.8))
+                    .padding(8)
+                    .background(Circle().fill(.white))
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            }
+        }
+        .padding(8)
+    }
+
+    private var categoriesAndDateSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Category")
+                    .font(.headline)
+                    .foregroundStyle(.black)
+
+                FlowLayout(spacing: 8) {
+                    ForEach(ExpenseCategory.allCases, id: \.self) { cat in
+                        CategoryPill(
+                            text: cat.rawValue,
+                            isSelected: category == cat
+                        ) {
+                            category = cat
                         }
                     }
                 }
-                .disabled(!canSave)
+            }
+
+            // Date (Moved from bottom)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Date")
+                    .font(.headline)
+                    .foregroundStyle(.black)
+
+                DatePicker("", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var merchantField: some View {
+        LabeledField(label: "Merchant", spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    TextField("Where did you spend?", text: $merchant)
+                        .font(.body)
+                        .foregroundStyle(merchantIsPlaceholder ? .red : .black)
+                        .onChange(of: merchant) { _, _ in
+                            if merchantIsPlaceholder {
+                                merchantIsPlaceholder = false
+                            }
+                        }
+
+                    if merchantIsPlaceholder {
+                        Text("REVIEW")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(.red))
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(merchantIsPlaceholder ? .red.opacity(0.05) : .black.opacity(0.03))
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var descriptionField: some View {
+        LabeledField(label: "Description", spacing: 8) {
+            HStack {
+                TextField("What was this for?", text: $expenseDescription)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .onChange(of: expenseDescription) { _, _ in
+                        if descriptionIsAIGenerated {
+                            descriptionIsAIGenerated = false
+                        }
+                    }
+
+                if descriptionIsAIGenerated {
+                    Text("AI")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(.black.opacity(0.7)))
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.black.opacity(0.03))
+            )
+        }
+        .padding(.horizontal)
+    }
+
+    private var amountField: some View {
+        LabeledField(label: "Amount", spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                amountInputField
+                exchangeRateDisplay
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var amountInputField: some View {
+        HStack(spacing: 4) {
+            currencyToggleButton
+            amountTextField
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.black.opacity(0.03))
+        )
+    }
+
+    private var currencyToggleButton: some View {
+        Button {
+            toggleCurrency()
+        } label: {
+            Text(currency == .jpy ? "¥" : "$")
+                .font(.body)
+                .fontWeight(.bold)
+                .foregroundStyle(.black)
+                .frame(width: 24)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var amountTextField: some View {
+        TextField("0", text: $amountString)
+            .font(.body)
+            .fontWeight(.bold)
+            .keyboardType(.decimalPad)
+            .foregroundStyle(.black)
+    }
+
+    private var exchangeRateDisplay: some View {
+        Group {
+            if let rate = aiExchangeRate {
+                Text("Rate: ¥\(NSDecimalNumber(decimal: rate).stringValue)")
+            } else if let cached = ExchangeRateService.shared.getCachedRate(for: date) {
+                Text("Rate: ¥\(NSDecimalNumber(decimal: cached).stringValue)")
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .padding(.leading, 4)
+    }
+
+    private func toggleCurrency() {
+        let currentAmount = Decimal(string: amountString) ?? 0
+        let rate = aiExchangeRate ?? ExchangeRateService.shared.getCachedRate(for: date) ?? BudgetTracker.defaultExchangeRate
+
+        withAnimation {
+            if currency == .jpy {
+                currency = .usd
+                if currentAmount > 0 {
+                    let usdAmount = currentAmount / rate
+                    amountString = usdAmount.formatted(.number.precision(.fractionLength(2)).grouping(.never))
+                }
+            } else {
+                currency = .jpy
+                if currentAmount > 0 {
+                    let jpyAmount = currentAmount * rate
+                    let nsAmount = NSDecimalNumber(decimal: jpyAmount)
+                    let handler = NSDecimalNumberHandler(roundingMode: .bankers, scale: 0, raiseOnExactness: false, raiseOnOverflow: false, raiseOnUnderflow: false, raiseOnDivideByZero: false)
+                    amountString = nsAmount.rounding(accordingToBehavior: handler).stringValue
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var ocrProcessingIndicator: some View {
+        if isProcessingOCR {
+            HStack {
+                ProgressView()
+                Text("Analyzing receipt with AI...")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
+        }
+    }
+
+    var body: some View {
+        mainContent
+            .overlay(alignment: .bottomTrailing) {
+                bugOverlay
+            }
+            .alert("🐛 Error Details", isPresented: $showBugDialog) {
+                Button("Copy Error") {
+                    if let error = ocrError {
+                        UIPasteboard.general.string = error
+                    }
+                }
+                Button("Dismiss", role: .cancel) { }
+            } message: {
+                if let error = ocrError {
+                    Text(error)
+                }
+            }
+            .alert("Validation Error", isPresented: Binding(
+                get: { validationError != nil },
+                set: { if !$0 { validationError = nil } }
+            )) {
+                Button("OK", role: .cancel) {
+                    validationError = nil
+                }
+            } message: {
+                if let error = validationError {
+                    Text(error)
+                }
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                cameraView
+            }
+            .fullScreenCover(isPresented: $showLibraryPicker) {
+                libraryPickerView
+            }
+            .sheet(isPresented: $showDocumentPicker) {
+                documentPickerView
+            }
+            .onChange(of: selectedImageUI) { oldValue, newValue in
+                handleImageChange(newValue)
+            }
+            .onChange(of: ocrError) { oldValue, newValue in
+                handleOCRErrorChange(newValue)
+            }
+            .onAppear {
+                handleOnAppear()
+            }
+    }
+
+    private var mainContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            headerView
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
 
             GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Receipt Processing Indicator
-                        if isProcessingOCR {
-                            HStack {
-                                ProgressView()
-                                Text("Analyzing receipt with AI...")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal)
-                        }
-
-                        // Top Section: Image + Categories
-                        HStack(alignment: .top, spacing: 16) {
-                            // Left: Receipt Image / Camera Button
-                            ZStack(alignment: .bottomTrailing) {
-                                if let image = selectedImageUI {
-                                    // Show captured image
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(maxWidth: geometry.size.width * 0.45)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .strokeBorder(.black.opacity(0.1), lineWidth: 1)
-                                        )
-                                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                                        .onTapGesture {
-                                            showLibraryPicker = true
-                                        }
-                                } else {
-                                    ImagePlaceholder(
-                                        icon: "photo.fill",
-                                        text: "Add Image",
-                                        height: 160
-                                    ) {
-                                        showLibraryPicker = true
-                                    }
-                                    .frame(width: 120) // Fixed width placeholder
-                                }
-
-                                // Camera button
-                                Button {
-                                    showCamera = true
-                                } label: {
-                                    Image(systemName: "camera.fill")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(.gray.opacity(0.8))
-                                        .padding(8)
-                                }
-                                .background(.black.opacity(0.05))
-                                .clipShape(Circle())
-
-                                // PDF Import button
-                                Button {
-                                    showDocumentPicker = true
-                                } label: {
-                                    Image(systemName: "doc.fill")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(.gray.opacity(0.8))
-                                        .padding(8)
-                                        .background(
-                                            Circle()
-                                                .fill(.white)
-                                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                                        )
-                                }
-                                .padding(8)
-                            }
-
-                            // Right: Categories (Wrapping)
-                            VStack(alignment: .leading, spacing: 16) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Category")
-                                        .font(.headline)
-                                        .foregroundStyle(.black)
-
-                                    FlowLayout(spacing: 8) {
-                                        ForEach(ExpenseCategory.allCases, id: \.self) { cat in
-                                            CategoryPill(
-                                                text: cat.rawValue,
-                                                isSelected: category == cat
-                                            ) {
-                                                category = cat
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Date (Moved from bottom)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Date")
-                                        .font(.headline)
-                                        .foregroundStyle(.black)
-                                    
-                                    DatePicker("", selection: $date, displayedComponents: .date)
-                                        .datePickerStyle(.compact)
-                                        .labelsHidden()
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-
-                    // Merchant Name
-                    LabeledField(label: "Merchant", spacing: 8) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                TextField("Where did you spend?", text: $merchant)
-                                    .font(.body) // Consistent font
-                                    .foregroundStyle(merchantIsPlaceholder ? .red : .black)
-                                    .onChange(of: merchant) { _, _ in
-                                        if merchantIsPlaceholder {
-                                            merchantIsPlaceholder = false
-                                        }
-                                    }
-
-                                if merchantIsPlaceholder {
-                                    Text("REVIEW")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(Capsule().fill(.red))
-                                }
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(merchantIsPlaceholder ? .red.opacity(0.05) : .black.opacity(0.03))
-                            )
-                        }
+                        ocrProcessingIndicator
+                        imageAndCategoriesView(geometry: geometry)
+                        merchantField
+                        descriptionField
+                        amountField
+                        Spacer(minLength: 100)
                     }
-                    .padding(.horizontal)
+                }
+            }
+        }
+    }
 
-                    // Description
-                    LabeledField(label: "Description", spacing: 8) {
-                        HStack {
-                            TextField("What was this for?", text: $expenseDescription)
-                                .font(.body) // Consistent font
-                                .foregroundStyle(.primary)
-                                .onChange(of: expenseDescription) { _, _ in
-                                    if descriptionIsAIGenerated {
-                                        descriptionIsAIGenerated = false
-                                    }
-                                }
+    @ViewBuilder
+    private var bugOverlay: some View {
+        if ocrError != nil {
+            Button {
+                showBugDialog = true
+            } label: {
+                Text("🐛")
+                    .font(.system(size: 60))
+                    .shadow(radius: 4)
+                    .rotationEffect(.degrees(bugWiggle ? -10 : -20))
+            }
+            .offset(x: -20, y: bugOffset)
+            .animation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: bugWiggle)
+        }
+    }
 
-                            if descriptionIsAIGenerated {
-                                Text("AI")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(Capsule().fill(.black.opacity(0.7)))
-                            }
-                        }
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(.black.opacity(0.03))
-                        )
+    private var cameraView: some View {
+        ImagePickerController(image: $selectedImageUI, sourceType: .camera)
+            .edgesIgnoringSafeArea(.all)
+    }
+
+    private var libraryPickerView: some View {
+        PhotoLibraryPicker(selectedImage: $selectedImageUI)
+            .edgesIgnoringSafeArea(.all)
+    }
+
+    private var documentPickerView: some View {
+        DocumentPicker { url in
+            if let pdfData = try? Data(contentsOf: url),
+               let document = PDFDocument(data: pdfData) {
+
+                // Store original PDF data
+                originalPDFData = pdfData
+
+                // Convert to image for display/OCR
+                let converter = PDFConverter()
+                if let stitchedImage = converter.stitchPDFPages(document: document) {
+                    selectedImageUI = stitchedImage
+
+                    // Trigger OCR
+                    Task {
+                        await processReceiptImage(stitchedImage)
                     }
-                    .padding(.horizontal)
+                }
+            }
+        }
+    }
 
-                    // Amount
-                    LabeledField(label: "Amount", spacing: 8) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Text("¥")
-                                    .font(.body) // Consistent font
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.secondary)
+    private func handleImageChange(_ newImage: UIImage?) {
+        if let image = newImage {
+            Task {
+                await processReceiptImage(image)
+            }
+        }
+    }
 
-                                TextField("0", text: $amountYen)
-                                    .font(.body) // Consistent font
-                                    .fontWeight(.bold)
-                                    .keyboardType(.numberPad)
-                                    .foregroundStyle(.black)
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.black.opacity(0.03))
-                            )
+    private func handleOCRErrorChange(_ newError: String?) {
+        if newError != nil {
+            bugOffset = 500
+            bugWiggle = false
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
+                bugOffset = -20
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                bugWiggle = true
+            }
+        } else {
+            bugOffset = 500
+            bugWiggle = false
+        }
+    }
 
-                            Group {
-                                if let rate = aiExchangeRate {
-                                    Text("Rate: \u{00a5}\(NSDecimalNumber(decimal: rate).stringValue)")
-                                } else if let cached = ExchangeRateService.shared.getCachedRate(for: date) {
-                                    Text("Rate: \u{00a5}\(NSDecimalNumber(decimal: cached).stringValue)")
-                                }
-                            }
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    Spacer(minLength: 100)
-                }
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            // Climbing bug for errors
-            if ocrError != nil {
-                Button {
-                    showBugDialog = true
-                } label: {
-                    Text("🐛")
-                        .font(.system(size: 60))
-                        .shadow(radius: 4)
-                        .rotationEffect(.degrees(bugWiggle ? -10 : -20))
-                }
-                .offset(x: -20, y: bugOffset)
-                .animation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: bugWiggle)
-            }
-        }
-        .alert("🐛 Error Details", isPresented: $showBugDialog) {
-            Button("Copy Error") {
-                if let error = ocrError {
-                    UIPasteboard.general.string = error
-                }
-            }
-            Button("Dismiss", role: .cancel) { }
-        } message: {
-            if let error = ocrError {
-                Text(error)
-            }
-        }
-        .alert("Validation Error", isPresented: Binding(
-            get: { validationError != nil },
-            set: { if !$0 { validationError = nil } }
-        )) {
-            Button("OK", role: .cancel) {
-                validationError = nil
-            }
-        } message: {
-            if let error = validationError {
-                Text(error)
-            }
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            ImagePickerController(image: $selectedImageUI, sourceType: .camera)
-                .edgesIgnoringSafeArea(.all)
-        }
-        .fullScreenCover(isPresented: $showLibraryPicker) {
-            PhotoLibraryPicker(selectedImage: $selectedImageUI)
-                .edgesIgnoringSafeArea(.all)
-        }
-        .sheet(isPresented: $showDocumentPicker) {
-            DocumentPicker(selectedImage: $selectedImageUI)
-        }
-        .onChange(of: selectedImageUI) { oldValue, newValue in
-            // Trigger receipt parsing whenever image changes (camera or library)
-            if let image = newValue {
-                Task {
-                    await processReceiptImage(image)
-                }
-            }
-        }
-        .onChange(of: ocrError) { oldValue, newValue in
-            // Reset bug position when new error appears
-            if newValue != nil {
-                bugOffset = 500 // Reset to off-screen
-                bugWiggle = false
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
-                    bugOffset = -20
-                }
-                // Start wiggling after climbing
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                    bugWiggle = true
-                }
-            } else {
-                bugOffset = 500 // Hide when error is cleared
-                bugWiggle = false
-            }
-        }
-        }
-        .onAppear {
-            if autoLaunchCamera {
-                // Small delay to ensure view is ready
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showCamera = true
-                }
+    private func handleOnAppear() {
+        if autoLaunchCamera {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showCamera = true
             }
         }
     }
@@ -385,8 +505,8 @@ struct AddEntryView: View {
         }
 
         // Amount must be valid and > 0
-        guard !amountYen.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let amount = Decimal(string: amountYen),
+        guard !amountString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let amount = Decimal(string: amountString),
               amount > 0 else {
             return false
         }
@@ -414,7 +534,7 @@ struct AddEntryView: View {
             return "Please enter a merchant name."
         }
 
-        let trimmedAmount = amountYen.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedAmount = amountString.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedAmount.isEmpty {
             return "Please enter an amount."
         }
@@ -443,6 +563,27 @@ struct AddEntryView: View {
         return nil
     }
 
+    private func saveReceiptImage(_ image: UIImage) -> String? {
+        // Generate a UUID for this receipt
+        let uuid = UUID().uuidString
+        let jpgFilename = "\(uuid).jpg"
+        
+        // Save the image (JPG)
+        if ImageManager.shared.saveRawData(image.jpegData(compressionQuality: 0.8)!, filename: jpgFilename) {
+
+            // If we have original PDF data, save it too with the same UUID
+            if let pdfData = originalPDFData {
+                let pdfFilename = "\(uuid).pdf"
+                if ImageManager.shared.saveRawData(pdfData, filename: pdfFilename) {
+                    print("💾 Saved original PDF: \(pdfFilename)")
+                }
+            }
+
+            return jpgFilename
+        }
+        
+        return nil
+    }
     private func processReceiptImage(_ image: UIImage) async {
         // Reset state
         await MainActor.run {
@@ -489,8 +630,17 @@ struct AddEntryView: View {
                     print("⚠️ No merchant name returned - using fallback")
                 }
 
-                if let amount = parsed.totalAmountYen {
-                    // Convert Decimal to String (no decimal places for Yen) using banker's rounding
+                // Logic to determine currency and amount
+                if let usd = parsed.totalAmountUSD {
+                    // Prefer USD if available
+                    currency = .usd
+                    aiAmountUSD = usd
+                    amountString = usd.description
+                    fieldsFound.append("amount (USD)")
+                    print("💵 Auto-switched to USD: $\(usd)")
+                } else if let amount = parsed.totalAmountYen {
+                    // Fallback to JPY
+                    currency = .jpy
                     let nsAmount = NSDecimalNumber(decimal: amount)
                     let handler = NSDecimalNumberHandler(roundingMode: .bankers,
                                                          scale: 0,
@@ -499,8 +649,8 @@ struct AddEntryView: View {
                                                          raiseOnUnderflow: false,
                                                          raiseOnDivideByZero: false)
                     let rounded = nsAmount.rounding(accordingToBehavior: handler)
-                    amountYen = rounded.stringValue
-                    fieldsFound.append("amount")
+                    amountString = rounded.stringValue
+                    fieldsFound.append("amount (JPY)")
                 } else {
                     fieldsMissing.append("amount")
                 }
@@ -518,6 +668,16 @@ struct AddEntryView: View {
                    let parsedCategory = ExpenseCategory(rawValue: categoryStr) {
                     category = parsedCategory
                     fieldsFound.append("category")
+                }
+
+                // Post-processing: Force "Hotel" category if description/merchant suggests accommodation
+                // This overrides the AI if it defaults to "Other"
+                let lowerDesc = expenseDescription.lowercased()
+                let lowerMerchant = merchant.lowercased()
+                if lowerDesc.contains("accommodation") || lowerDesc.contains("hotel") || lowerDesc.contains("stay") ||
+                   lowerMerchant.contains("hotel") || lowerMerchant.contains("inn") || lowerMerchant.contains("stay") {
+                    category = .hotel
+                    print("🏨 Force-set category to Hotel based on keywords")
                 }
 
                 if let description = parsed.expenseDescription {
@@ -558,46 +718,48 @@ struct AddEntryView: View {
     }
 
     private func saveExpense() async {
-        // Convert amountYen string to Decimal
-        let amountJPY = Decimal(string: amountYen) ?? 0
-
+        let inputAmount = Decimal(string: amountString) ?? 0
+        
+        var amountJPY: Decimal = 0
+        var amountUSD: Decimal = 0
         var exchangeRate: Decimal = BudgetTracker.defaultExchangeRate
-        var amountUSD: Decimal
         var needsUpdate = false
 
+        // Determine exchange rate first
         if let aiRate = aiExchangeRate {
             exchangeRate = aiRate
             print("✅ Using receipt-provided exchange rate: \u{00a5}\(aiRate) per $1")
+        } else if let cached = ExchangeRateService.shared.getCachedRate(for: date) {
+             exchangeRate = cached
+        } else {
+             // Fetch if needed
+             print("📊 Fetching exchange rate for \(date)...")
+             if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: date) {
+                 exchangeRate = fetchedRate
+                 print("✅ Successfully fetched exchange rate: \(fetchedRate)")
+             } else {
+                 print("⚠️ Failed to fetch exchange rate, using default: \(BudgetTracker.defaultExchangeRate)")
+                 needsUpdate = true
+             }
         }
 
-        if let aiUSD = aiAmountUSD {
-            amountUSD = aiUSD
-            if aiExchangeRate == nil {
-                // Backfill exchange rate from JPY and USD if possible
-                if amountJPY > 0 {
-                    exchangeRate = amountJPY / aiUSD
-                    print("🔄 Derived exchange rate from receipt amounts: \u{00a5}\(exchangeRate) per $1")
-                }
-            }
+        // Calculate amounts based on selected currency
+        if currency == .usd {
+            amountUSD = inputAmount
+            amountJPY = amountUSD * exchangeRate
+            // Round JPY to whole number
+            let nsAmount = NSDecimalNumber(decimal: amountJPY)
+            let handler = NSDecimalNumberHandler(roundingMode: .bankers, scale: 0, raiseOnExactness: false, raiseOnOverflow: false, raiseOnUnderflow: false, raiseOnDivideByZero: false)
+            amountJPY = nsAmount.rounding(accordingToBehavior: handler).decimalValue
         } else {
-            // No USD on receipt; compute using exchange rate, fetching API only if no receipt rate
-            if aiExchangeRate == nil {
-                print("📊 Fetching exchange rate for \(date)...")
-                if let fetchedRate = await ExchangeRateService.shared.fetchRate(for: date) {
-                    exchangeRate = fetchedRate
-                    print("✅ Successfully fetched exchange rate: \(fetchedRate)")
-                } else {
-                    print("⚠️ Failed to fetch exchange rate, using default: \(BudgetTracker.defaultExchangeRate)")
-                    needsUpdate = true
-                }
-            }
+            amountJPY = inputAmount
             amountUSD = amountJPY / exchangeRate
         }
 
-        // Save receipt image
+        // Save receipt image (and PDF if available)
         var imagePaths: [String] = []
         if let image = selectedImageUI {
-            if let savedPath = ImageManager.shared.saveImage(image) {
+            if let savedPath = saveReceiptImage(image) {
                 imagePaths.append(savedPath)
             }
         }
@@ -634,8 +796,12 @@ struct AddEntryView: View {
 // MARK: - Document Picker for PDFs
 
 struct DocumentPicker: UIViewControllerRepresentable {
-    @Binding var selectedImage: UIImage?
+    var onPick: (URL) -> Void
     @Environment(\.dismiss) var dismiss
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf, .image], asCopy: true)
@@ -646,10 +812,6 @@ struct DocumentPicker: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
     class Coordinator: NSObject, UIDocumentPickerDelegate {
         let parent: DocumentPicker
 
@@ -659,23 +821,10 @@ struct DocumentPicker: UIViewControllerRepresentable {
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             guard let url = urls.first else { return }
-
-            // Check if it's a PDF
-            if url.pathExtension.lowercased() == "pdf" {
-                // Convert PDF to image
-                if let image = PDFConverter.convertPDFToImage(url: url) {
-                    DispatchQueue.main.async {
-                        self.parent.selectedImage = image
-                        self.parent.dismiss()
-                    }
-                }
-            } else if let image = UIImage(contentsOfFile: url.path) {
-                // Regular image
-                DispatchQueue.main.async {
-                    self.parent.selectedImage = image
-                    self.parent.dismiss()
-                }
-            }
+            
+            // Pass the URL back to the parent
+            parent.onPick(url)
+            parent.dismiss()
         }
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
@@ -715,6 +864,57 @@ struct PDFConverter {
 
         print("✅ Converted PDF to image: \(pageRect.size)")
         return image
+    }
+
+    /// Stitch all pages of a PDF document into a single vertical image
+    func stitchPDFPages(document: PDFDocument) -> UIImage? {
+        let pageCount = document.pageCount
+        guard pageCount > 0 else {
+            print("❌ PDF has no pages")
+            return nil
+        }
+
+        // Get dimensions of all pages
+        var totalHeight: CGFloat = 0
+        var maxWidth: CGFloat = 0
+        var pageImages: [(image: UIImage, rect: CGRect)] = []
+
+        for i in 0..<pageCount {
+            guard let page = document.page(at: i) else { continue }
+            let pageRect = page.bounds(for: .mediaBox)
+
+            maxWidth = max(maxWidth, pageRect.width)
+            totalHeight += pageRect.height
+
+            // Render each page to an image
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+            let pageImage = renderer.image { context in
+                UIColor.white.set()
+                context.fill(pageRect)
+
+                context.cgContext.translateBy(x: 0, y: pageRect.size.height)
+                context.cgContext.scaleBy(x: 1.0, y: -1.0)
+                context.cgContext.drawPDFPage(page.pageRef!)
+            }
+
+            pageImages.append((pageImage, pageRect))
+        }
+
+        // Create a single tall canvas
+        let finalSize = CGSize(width: maxWidth, height: totalHeight)
+        let renderer = UIGraphicsImageRenderer(size: finalSize)
+
+        let stitchedImage = renderer.image { context in
+            var yOffset: CGFloat = 0
+
+            for (pageImage, pageRect) in pageImages {
+                pageImage.draw(at: CGPoint(x: 0, y: yOffset))
+                yOffset += pageRect.height
+            }
+        }
+
+        print("✅ Stitched \(pageCount) PDF pages into single image: \(finalSize)")
+        return stitchedImage
     }
 }
 

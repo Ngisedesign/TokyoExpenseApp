@@ -196,20 +196,33 @@ struct ExportView: View {
                         let suffix = (i == 0) ? "" : "_\(i + 1)"
                         let newName = "\(baseName)\(suffix).\(ext)"
                         
-                        // Save to Receipts subfolder
-                        let dstURL = receiptsDir.appendingPathComponent(newName)
-
-                        // Copy (overwrite if exists)
-                        if FileManager.default.fileExists(atPath: dstURL.path) {
-                            try? FileManager.default.removeItem(at: dstURL)
+                        // Check if a corresponding PDF exists
+                        let pdfFilename = filename.replacingOccurrences(of: ".jpg", with: ".pdf")
+                        if ImageManager.shared.fileExists(filename: pdfFilename) {
+                            // Export the PDF instead
+                            let pdfSrcURL = ImageManager.shared.getImageURL(pdfFilename)
+                            let pdfNewName = "\(baseName)\(suffix).pdf"
+                            let pdfDstURL = receiptsDir.appendingPathComponent(pdfNewName)
+                            
+                            if FileManager.default.fileExists(atPath: pdfDstURL.path) {
+                                try? FileManager.default.removeItem(at: pdfDstURL)
+                            }
+                            try FileManager.default.copyItem(at: pdfSrcURL, to: pdfDstURL)
+                            exportedNames.append(pdfNewName)
+                            imageURLs.append(pdfDstURL)
+                            print("📄 Exported original PDF: \(pdfNewName)")
+                        } else {
+                            // Export the JPG image
+                            let dstURL = receiptsDir.appendingPathComponent(newName)
+                            
+                            if FileManager.default.fileExists(atPath: dstURL.path) {
+                                try? FileManager.default.removeItem(at: dstURL)
+                            }
+                            try FileManager.default.copyItem(at: srcURL, to: dstURL)
+                            
+                            exportedNames.append(newName)
+                            imageURLs.append(dstURL)
                         }
-                        try FileManager.default.copyItem(at: srcURL, to: dstURL)
-
-                        exportedNames.append(newName) // Store filename only for PDF map (or relative path if needed, but PDF usually just wants the name for display)
-                        // Actually PDFExporter draws "#001" so it doesn't use this name for display.
-                        // But if we want to be precise, we can store "Receipts/..." but PDFExporter logic doesn't seem to use it for drawing images.
-                        
-                        imageURLs.append(dstURL)
                     }
                     filenameMap[expense.id] = exportedNames
                 }
@@ -225,7 +238,12 @@ struct ExportView: View {
 
             // Generate PDF
             let pdfData = PDFExporter.shared.createPDF(expenses: sortedExpenses, filenameMap: filenameMap)
-            let pdfURL = exportDir.appendingPathComponent("Expense_Report.pdf")
+            
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateStr = dateFormatter.string(from: Date())
+            let pdfURL = exportDir.appendingPathComponent("Expense_Report_\(dateStr).pdf")
+            
             try pdfData.write(to: pdfURL)
 
             await MainActor.run {
