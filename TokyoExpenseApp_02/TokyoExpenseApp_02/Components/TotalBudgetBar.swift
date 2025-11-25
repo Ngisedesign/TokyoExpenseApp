@@ -48,10 +48,10 @@ struct TotalBudgetBar: View {
             let minSegmentWidth: CGFloat = 6
 
             // Calculate budget amounts
-            let foodBudget = BudgetTracker.BudgetCategory.perDiem.budget
-            let transportBudget = BudgetTracker.BudgetCategory.transport.budget
-            let flightBudget = BudgetTracker.BudgetCategory.flight.budget
-            let hotelBudget = BudgetTracker.BudgetCategory.hotel.budget
+            let foodBudget: Decimal = BudgetTracker.BudgetCategory.perDiem.budget(from: expenses, includeTravelDays: includeTravelDays)
+            let transportBudget: Decimal = BudgetTracker.BudgetCategory.transport.budget(from: expenses, includeTravelDays: includeTravelDays)
+            let flightBudget: Decimal = BudgetTracker.BudgetCategory.flight.budget(from: expenses, includeTravelDays: includeTravelDays)
+            let hotelBudget: Decimal = BudgetTracker.BudgetCategory.hotel.budget(from: expenses, includeTravelDays: includeTravelDays)
 
             // Calculate overflow
             let foodOverflow = max(0, foodSpent - foodBudget)
