@@ -170,6 +170,9 @@ struct ExpenseListView: View {
         // Find and delete expenses with selected IDs
         let expensesToDelete = expenses.filter { selectedExpenses.contains($0.id) }
         for expense in expensesToDelete {
+            // Delete associated receipt images first
+            ImageManager.shared.deleteImages(expense.receiptImagePaths)
+
             modelContext.delete(expense)
         }
 
@@ -187,6 +190,9 @@ struct ExpenseListView: View {
     }
 
     private func deleteSingleExpense(_ expense: Expense) {
+        // Delete associated receipt images first
+        ImageManager.shared.deleteImages(expense.receiptImagePaths)
+
         modelContext.delete(expense)
 
         do {

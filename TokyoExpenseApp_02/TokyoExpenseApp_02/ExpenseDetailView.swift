@@ -258,6 +258,9 @@ struct ExpenseDetailView: View {
         expense.date = date
         expense.category = category.rawValue
 
+        // Recalculate work day flag when date changes
+        expense.isWorkDay = BudgetTracker.isWorkDay(date)
+
         // Update amount if changed
         if let newAmount = Decimal(string: amountYen) {
             expense.amountJPY = newAmount
