@@ -92,9 +92,9 @@ struct FlippingCoinView: View {
         Circle()
             .fill(
                 LinearGradient(colors: [
-                    Color.white.opacity(0.22),
-                    Color.white.opacity(0.10),
-                    Color.white.opacity(0.06)
+                    AppTheme.Gradients.white(opacity: 0.22),
+                    AppTheme.Gradients.white(opacity: 0.10),
+                    AppTheme.Gradients.white(opacity: 0.06)
                 ], startPoint: .topLeading, endPoint: .bottomTrailing)
             )
             .blendMode(.overlay)
@@ -102,7 +102,7 @@ struct FlippingCoinView: View {
 
     private var coinStrokeBorder: some View {
         Circle()
-            .strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
+            .strokeBorder(AppTheme.Gradients.white(opacity: 0.35), lineWidth: 1)
             .blur(radius: 0.5)
             .opacity(0.9)
     }
@@ -113,10 +113,10 @@ struct FlippingCoinView: View {
                 .stroke(
                     AngularGradient(
                         gradient: Gradient(colors: [
-                            Color.white.opacity(0.55),
-                            Color.white.opacity(0.05),
-                            Color.white.opacity(0.0),
-                            Color.white.opacity(0.25)
+                            AppTheme.Gradients.white(opacity: 0.55),
+                            AppTheme.Gradients.white(opacity: 0.05),
+                            AppTheme.Gradients.white(opacity: 0.0),
+                            AppTheme.Gradients.white(opacity: 0.25)
                         ]),
                         center: .center
                     ),
@@ -138,7 +138,7 @@ struct FlippingCoinView: View {
     private func currencySymbolShadow(name: String) -> some View {
         Image(systemName: name)
             .font(.system(size: size * 0.45, weight: .bold))
-            .foregroundStyle(Color.black.opacity(0.45))
+            .foregroundStyle(AppTheme.Gradients.black(opacity: 0.45))
             .blur(radius: 1.5)
             .offset(x: 0, y: 1)
             .mask(
@@ -307,10 +307,10 @@ struct ContentView: View {
                         Text("\(CurrencyFormatter.format(usd: foodSpentToday, showYen: showYen, includeDecimals: false)) of \(CurrencyFormatter.format(usd: BudgetTracker.perDiemDaily, showYen: showYen, includeDecimals: false))")
                         if foodRollover > 0 {
                             Text("+\(CurrencyFormatter.format(usd: foodRollover, showYen: showYen, includeDecimals: false).dropFirst())")
-                                .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
+                                .foregroundStyle(AppTheme.SemanticColors.success)
                         } else if foodRollover < 0 {
                             Text(CurrencyFormatter.format(usd: foodRollover, showYen: showYen, includeDecimals: false))
-                                .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                                .foregroundStyle(AppTheme.SemanticColors.overspending)
                         }
                     }
                     Spacer()
@@ -332,10 +332,10 @@ struct ContentView: View {
                         Text("\(CurrencyFormatter.format(usd: transportSpentToday, showYen: showYen, includeDecimals: false)) of \(CurrencyFormatter.format(usd: BudgetTracker.transportDaily, showYen: showYen, includeDecimals: false))")
                         if transportRollover > 0 {
                             Text("+\(CurrencyFormatter.format(usd: transportRollover, showYen: showYen, includeDecimals: false).dropFirst())")
-                                .foregroundStyle(Color(hue: 0.33, saturation: 0.70, brightness: 0.55))
+                                .foregroundStyle(AppTheme.SemanticColors.success)
                         } else if transportRollover < 0 {
                             Text(CurrencyFormatter.format(usd: transportRollover, showYen: showYen, includeDecimals: false))
-                                .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                                .foregroundStyle(AppTheme.SemanticColors.overspending)
                         }
                     }
                     Spacer()

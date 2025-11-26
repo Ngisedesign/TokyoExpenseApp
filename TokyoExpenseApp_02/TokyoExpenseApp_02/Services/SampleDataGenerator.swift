@@ -262,19 +262,19 @@ class SampleDataGenerator {
         let renderer = UIGraphicsImageRenderer(size: size)
 
         let image = renderer.image { context in
-            // Background color based on category
+            // Background color based on category (always light for PDF readability)
             let backgroundColor: UIColor
             switch category {
             case ExpenseCategory.food.rawValue:
-                backgroundColor = UIColor(red: 0.9, green: 0.95, blue: 1.0, alpha: 1.0) // Light blue
+                backgroundColor = AppTheme.PDFExport.foodBackground
             case ExpenseCategory.transport.rawValue:
-                backgroundColor = UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0) // Light green
+                backgroundColor = AppTheme.PDFExport.transportBackground
             case ExpenseCategory.hotel.rawValue:
-                backgroundColor = UIColor(red: 1.0, green: 0.95, blue: 0.9, alpha: 1.0) // Light orange
+                backgroundColor = AppTheme.PDFExport.hotelBackground
             case ExpenseCategory.flight.rawValue:
-                backgroundColor = UIColor(red: 0.95, green: 0.9, blue: 1.0, alpha: 1.0) // Light purple
+                backgroundColor = AppTheme.PDFExport.flightBackground
             default:
-                backgroundColor = UIColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1.0) // Light gray
+                backgroundColor = AppTheme.PDFExport.otherBackground
             }
 
             backgroundColor.setFill()
