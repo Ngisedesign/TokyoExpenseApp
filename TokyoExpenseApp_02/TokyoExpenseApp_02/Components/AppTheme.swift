@@ -75,6 +75,12 @@ struct AppTheme {
             Color(light: Color.black,
                   dark: Color.white)
         }
+
+        /// Pill/button foreground (selected state)
+        static var pillSelectedForeground: Color {
+            Color(light: Color.white,
+                  dark: Color.black)
+        }
     }
 
     // MARK: - Background Colors

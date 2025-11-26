@@ -20,7 +20,7 @@ struct CategoryPill: View {
             Text(text)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(isSelected ? .white : AppTheme.SemanticColors.pillForeground)
+                .foregroundStyle(isSelected ? AppTheme.SemanticColors.pillSelectedForeground : AppTheme.SemanticColors.pillForeground)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)
                 .background(

@@ -138,7 +138,7 @@ struct ExpenseDetailView: View {
                             VStack(alignment: .leading, spacing: 16) {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Category")
-                                        .font(.subheadline)
+                                        .font(.headline)
                                         .foregroundStyle(.secondary)
 
                                     FlowLayout(spacing: 8) {
@@ -157,7 +157,7 @@ struct ExpenseDetailView: View {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Date")
                                         .font(.headline)
-                                        .foregroundStyle(.black)
+                                        .foregroundStyle(.secondary)
 
                                     DatePicker("", selection: $date, displayedComponents: .date)
                                         .labelsHidden()
@@ -175,7 +175,8 @@ struct ExpenseDetailView: View {
                             // Merchant Name
                             LabeledField(label: "Merchant") {
                                 TextField("Merchant name", text: $merchantName)
-                                    .font(.body) // Consistent font
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
                                     .padding()
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -187,7 +188,8 @@ struct ExpenseDetailView: View {
                             // Description
                             LabeledField(label: "Description") {
                                 TextField("What was this for?", text: $expenseDescription)
-                                    .font(.body) // Consistent font
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
                                     .padding()
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -230,7 +232,7 @@ struct ExpenseDetailView: View {
                                         Text(currency == .jpy ? "¥" : "$")
                                             .font(.body)
                                             .fontWeight(.semibold)
-                                            .foregroundStyle(.black)
+                                            .foregroundStyle(.primary)
                                             .frame(width: 24)
                                     }
                                     .buttonStyle(.plain)

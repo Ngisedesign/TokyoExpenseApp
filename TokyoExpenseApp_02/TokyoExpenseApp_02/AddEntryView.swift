@@ -206,7 +206,7 @@ struct AddEntryView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Category")
                     .font(.headline)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.secondary)
 
                 FlowLayout(spacing: 8) {
                     ForEach(ExpenseCategory.allCases, id: \.self) { cat in
@@ -224,7 +224,7 @@ struct AddEntryView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Date")
                     .font(.headline)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.secondary)
 
                 DatePicker("", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.compact)
@@ -243,7 +243,7 @@ struct AddEntryView: View {
                 HStack {
                     TextField("Where did you spend?", text: $merchant)
                         .font(.body)
-                        .foregroundStyle(merchantIsPlaceholder ? .red : .black)
+                        .foregroundStyle(merchantIsPlaceholder ? .red : .primary)
                         .onChange(of: merchant) { _, _ in
                             if merchantIsPlaceholder {
                                 merchantIsPlaceholder = false
@@ -335,8 +335,8 @@ struct AddEntryView: View {
         } label: {
             Text(currency == .jpy ? "¥" : "$")
                 .font(.body)
-                .fontWeight(.bold)
-                .foregroundStyle(.black)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
                 .frame(width: 24)
         }
         .buttonStyle(.plain)
@@ -345,9 +345,9 @@ struct AddEntryView: View {
     private var amountTextField: some View {
         TextField("0", text: $amountString)
             .font(.body)
-            .fontWeight(.bold)
+            .fontWeight(.semibold)
             .keyboardType(.decimalPad)
-            .foregroundStyle(.black)
+            .foregroundStyle(.primary)
     }
 
     private var exchangeRateDisplay: some View {
