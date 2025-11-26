@@ -155,17 +155,64 @@ struct AddEntryView: View {
                         showLibraryPicker = true
                     }
             } else {
-                ImagePlaceholder(
-                    icon: "photo.fill",
-                    text: "Add Image",
-                    height: 160
-                ) {
-                    showLibraryPicker = true
+                // Icon layout: 1 on top, 2 on bottom
+                VStack(spacing: 16) {
+                    // Top: Photo library button
+                    Button {
+                        showLibraryPicker = true
+                    } label: {
+                        Image(systemName: "photo.fill")
+                            .font(.system(size: 32, weight: .regular))
+                            .foregroundStyle(.gray.opacity(0.5))
+                            .frame(width: 80, height: 80)
+                            .background(
+                                Circle()
+                                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                                    .foregroundStyle(.gray.opacity(0.3))
+                            )
+                    }
+
+                    // Bottom: Camera and PDF buttons
+                    HStack(spacing: 16) {
+                        // Camera button
+                        Button {
+                            showCamera = true
+                        } label: {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 32, weight: .regular))
+                                .foregroundStyle(.gray.opacity(0.5))
+                                .frame(width: 80, height: 80)
+                                .background(
+                                    Circle()
+                                        .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                                        .foregroundStyle(.gray.opacity(0.3))
+                                )
+                        }
+
+                        // PDF Import button
+                        Button {
+                            showDocumentPicker = true
+                        } label: {
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 32, weight: .regular))
+                                .foregroundStyle(.gray.opacity(0.5))
+                                .frame(width: 80, height: 80)
+                                .background(
+                                    Circle()
+                                        .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                                        .foregroundStyle(.gray.opacity(0.3))
+                                )
+                        }
+                    }
                 }
                 .frame(width: 120)
+                .padding(.vertical, 8)
             }
 
-            imageCaptureButtons
+            // Only show edit buttons when image is present
+            if selectedImageUI != nil {
+                imageCaptureButtons
+            }
         }
     }
 
