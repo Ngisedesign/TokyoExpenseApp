@@ -81,11 +81,13 @@ struct AddEntryView: View {
     @State private var currency: Currency = .jpy
     @State private var originalPDFData: Data? = nil
 
-    
+
     var autoLaunchCamera: Bool = false
-    
-    init(autoLaunchCamera: Bool = false) {
+    var initialImage: UIImage? = nil
+
+    init(autoLaunchCamera: Bool = false, selectedImageUI: UIImage? = nil) {
         self.autoLaunchCamera = autoLaunchCamera
+        self.initialImage = selectedImageUI
     }
 
     // Receipt parsing state
@@ -545,7 +547,14 @@ struct AddEntryView: View {
     }
 
     private func handleOnAppear() {
-        if autoLaunchCamera {
+        // Handle pre-filled image from QuickCameraView
+        if let image = initialImage {
+            selectedImageUI = image
+            // OCR will be triggered automatically by onChange(of: selectedImageUI)
+        }
+
+        // Legacy: Handle auto-launch camera (backwards compatibility)
+        if autoLaunchCamera && initialImage == nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 showCamera = true
             }

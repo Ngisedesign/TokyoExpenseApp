@@ -365,16 +365,27 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .fullScreenCover(isPresented: $isPresentingAdd) {
-            AddEntryView()
+            AddEntryView(selectedImageUI: capturedImage)
+                .onDisappear {
+                    capturedImage = nil
+                }
         }
         .fullScreenCover(isPresented: $showBudgetView) {
             BudgetCarouselView()
         }
         .fullScreenCover(isPresented: $showQuickCamera) {
-            AddEntryView(autoLaunchCamera: true)
+            QuickCameraView(capturedImage: $capturedImage)
         }
         .sheet(isPresented: $showDebugMenu) {
             DebugMenuView()
+        }
+        .onChange(of: capturedImage) { oldValue, newValue in
+            if newValue != nil {
+                // Small delay to allow QuickCameraView to dismiss cleanly
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isPresentingAdd = true
+                }
+            }
         }
     }
 }
