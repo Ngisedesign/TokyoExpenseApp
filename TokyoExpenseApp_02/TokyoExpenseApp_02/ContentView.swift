@@ -272,7 +272,7 @@ struct ContentView: View {
                 // Custom button with simultaneous tap and long press
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(AppTheme.SemanticColors.pillForeground)
                     .contentShape(Rectangle())
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 1.0)
@@ -287,7 +287,7 @@ struct ContentView: View {
                     }
 
                 Spacer()
-                LargeIconButton(icon: "plus", size: 48) {
+                LargeIconButton(icon: "plus", size: 48, color: AppTheme.SemanticColors.pillForeground) {
                     isPresentingAdd = true
                 }
             }
@@ -354,7 +354,7 @@ struct ContentView: View {
             Spacer()
             HStack {
                 Spacer()
-                LargeIconButton(icon: "camera", size: 48) {
+                LargeIconButton(icon: "camera", size: 48, color: AppTheme.SemanticColors.pillForeground) {
                     // Open AddEntryView with camera auto-launch
                     showQuickCamera = true
                 }

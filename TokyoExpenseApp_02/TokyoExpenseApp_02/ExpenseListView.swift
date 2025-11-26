@@ -220,7 +220,7 @@ struct ExpenseRow: View {
             // Background date watermark (centered)
             Text(DateFormatters.shortDate(expense.date))
                 .font(.system(size: 40, weight: .bold))
-                .foregroundStyle(.primary.opacity(0.06))
+                .foregroundStyle(Color(light: .primary.opacity(0.06), dark: .white.opacity(0.12)))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .offset(x: isEditMode ? 20 : 0) // Slight offset if edit mode pushes content
