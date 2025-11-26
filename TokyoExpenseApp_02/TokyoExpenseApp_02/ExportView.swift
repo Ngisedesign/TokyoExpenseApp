@@ -20,7 +20,8 @@ struct ExportView: View {
         expenses.filter { expense in
             expense.date >= startDate &&
             expense.date <= endDate &&
-            selectedCategories.contains(expense.category)
+            selectedCategories.contains(expense.category) &&
+            expense.isStashed != true
         }
     }
 

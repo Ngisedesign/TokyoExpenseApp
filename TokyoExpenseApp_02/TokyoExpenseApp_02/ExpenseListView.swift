@@ -11,12 +11,23 @@ struct ExpenseListView: View {
     @State private var isEditMode = false
     @State private var selectedExpenses: Set<UUID> = []
     @State private var showDeleteConfirmation = false
+    @State private var showStashConfirmation = false
+    @State private var showStashedView = false
 
     var filteredExpenses: [Expense] {
         expenses.filter { expense in
             let matchesCategory = selectedCategory == nil || expense.category == selectedCategory?.rawValue
-            return matchesCategory
+            let notStashed = expense.isStashed != true
+            return matchesCategory && notStashed
         }
+    }
+
+    var stashedExpenses: [Expense] {
+        expenses.filter { $0.isStashed == true }
+    }
+
+    var stashedCount: Int {
+        stashedExpenses.count
     }
 
     var body: some View {
@@ -139,9 +150,41 @@ struct ExpenseListView: View {
                         Text("\(selectedExpenses.count) selected")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Button {
+                            showStashConfirmation = true
+                        } label: {
+                            Label("Stash", systemImage: "archivebox")
+                                .foregroundStyle(.primary)
+                        }
                     }
                     .padding()
                     .background(.ultraThinMaterial)
+                }
+            }
+
+            // Money bag indicator (always visible at bottom when there are stashed items)
+            if stashedCount > 0 && !isEditMode {
+                VStack(spacing: 0) {
+                    Divider()
+
+                    Button {
+                        showStashedView = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "dollarsign.circle.fill")
+                                .font(.title2)
+                            Text("\(stashedCount) stashed")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(.ultraThinMaterial)
+                    }
                 }
             }
         }
@@ -155,6 +198,17 @@ struct ExpenseListView: View {
             }
         } message: {
             Text("Are you sure you want to delete \(selectedExpenses.count) expense(s)? This action cannot be undone.")
+        }
+        .alert("Stash Expenses", isPresented: $showStashConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Stash") {
+                stashSelectedExpenses()
+            }
+        } message: {
+            Text("Stash \(selectedExpenses.count) expense(s)? They will be hidden from views and calculations but can be unstashed anytime.")
+        }
+        .sheet(isPresented: $showStashedView) {
+            StashedExpensesView(expenses: stashedExpenses)
         }
     }
 
@@ -200,6 +254,23 @@ struct ExpenseListView: View {
             print("💾 Deleted expense: \(expense.merchantName)")
         } catch {
             print("❌ Error deleting expense: \(error)")
+        }
+    }
+
+    private func stashSelectedExpenses() {
+        let expensesToStash = expenses.filter { selectedExpenses.contains($0.id) }
+        for expense in expensesToStash {
+            expense.isStashed = true
+        }
+
+        selectedExpenses.removeAll()
+        isEditMode = false
+
+        do {
+            try modelContext.save()
+            print("💰 Stashed \(expensesToStash.count) expense(s)")
+        } catch {
+            print("❌ Error stashing expenses: \(error)")
         }
     }
 

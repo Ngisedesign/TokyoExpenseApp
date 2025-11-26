@@ -18,6 +18,7 @@ final class Expense {
     var ocrConfidence: Float?
     var notes: String?
     var needsExchangeRateUpdate: Bool?
+    var isStashed: Bool?
 
     init(
         id: UUID = UUID(),
@@ -34,7 +35,8 @@ final class Expense {
         isArchived: Bool? = false,
         ocrConfidence: Float? = nil,
         notes: String? = nil,
-        needsExchangeRateUpdate: Bool? = false
+        needsExchangeRateUpdate: Bool? = false,
+        isStashed: Bool? = false
     ) {
         self.id = id
         self.date = date
@@ -51,6 +53,7 @@ final class Expense {
         self.ocrConfidence = ocrConfidence
         self.notes = notes
         self.needsExchangeRateUpdate = needsExchangeRateUpdate
+        self.isStashed = isStashed
     }
 
     var isIncomplete: Bool {

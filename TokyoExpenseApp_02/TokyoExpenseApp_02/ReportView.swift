@@ -9,7 +9,8 @@ struct ReportView: View {
     @State private var selectedExpense: Expense?
 
     private var filteredExpenses: [Expense] {
-        let list = includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
+        let unstashed = expenses.filter { $0.isStashed != true }
+        let list = includeTravelDays ? unstashed : unstashed.filter { $0.isWorkDay }
         return list.sorted { $0.date < $1.date }
     }
 

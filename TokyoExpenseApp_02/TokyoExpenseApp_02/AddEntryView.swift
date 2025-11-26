@@ -158,7 +158,7 @@ struct AddEntryView: View {
                 ImagePlaceholder(
                     icon: "photo.fill",
                     text: "Add Image",
-                    height: 160
+                    height: 180
                 ) {
                     showLibraryPicker = true
                 }
@@ -170,7 +170,7 @@ struct AddEntryView: View {
     }
 
     private var imageCaptureButtons: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 40) {
             // Camera button
             Button {
                 showCamera = true

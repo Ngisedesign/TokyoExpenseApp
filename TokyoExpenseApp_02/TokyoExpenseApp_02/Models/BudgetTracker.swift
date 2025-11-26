@@ -101,22 +101,32 @@ struct BudgetTracker {
 
     // MARK: - Spending Calculations
 
+    // MARK: - Stash Filtering
+
+    /// Filter out stashed expenses from calculations
+    private static func filterStashed(_ expenses: [Expense]) -> [Expense] {
+        expenses.filter { $0.isStashed != true }
+    }
+
     /// Calculate total spent across all expenses
     static func totalSpent(from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
-        let filteredExpenses = includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
+        let unstashed = filterStashed(expenses)
+        let filteredExpenses = includeTravelDays ? unstashed : unstashed.filter { $0.isWorkDay }
         return filteredExpenses.reduce(0) { $0 + $1.amountUSD }
     }
 
     /// Calculate spent per category
     static func spentByCategory(_ category: BudgetCategory, from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
+        let unstashed = filterStashed(expenses)
+
         // Flight and Hotel are trip-wide fixed costs, not subject to daily work day filtering
         let filteredExpenses: [Expense]
         if category == .flight || category == .hotel {
             // Always include all expenses for fixed costs
-            filteredExpenses = expenses
+            filteredExpenses = unstashed
         } else {
             // Filter by work days for daily discretionary spending (Food, Transport)
-            filteredExpenses = includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
+            filteredExpenses = includeTravelDays ? unstashed : unstashed.filter { $0.isWorkDay }
         }
 
         let categoryExpenses: [Expense]
@@ -139,7 +149,8 @@ struct BudgetTracker {
         var dailySpending: [Date: Decimal] = [:]
 
         let calendar = Calendar.current
-        let workDayExpenses = expenses.filter {
+        let unstashed = filterStashed(expenses)
+        let workDayExpenses = unstashed.filter {
             $0.isWorkDay && $0.category == ExpenseCategory.food.rawValue
         }
 
@@ -156,7 +167,8 @@ struct BudgetTracker {
         var dailySpending: [Date: Decimal] = [:]
 
         let calendar = Calendar.current
-        let workDayExpenses = expenses.filter {
+        let unstashed = filterStashed(expenses)
+        let workDayExpenses = unstashed.filter {
             $0.isWorkDay && $0.category == ExpenseCategory.transport.rawValue
         }
 
@@ -219,15 +231,17 @@ struct BudgetTracker {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: DebugDateOverride.currentDate())
 
+        let unstashed = filterStashed(expenses)
+
         let categoryExpenses: [Expense]
         switch category {
         case .perDiem:
-            categoryExpenses = expenses.filter {
+            categoryExpenses = unstashed.filter {
                 $0.category == ExpenseCategory.food.rawValue &&
                 calendar.startOfDay(for: $0.date) == today
             }
         case .transport:
-            categoryExpenses = expenses.filter {
+            categoryExpenses = unstashed.filter {
                 $0.category == ExpenseCategory.transport.rawValue &&
                 calendar.startOfDay(for: $0.date) == today
             }
@@ -251,18 +265,20 @@ struct BudgetTracker {
         let dailyAllotment = category == .perDiem ? perDiemDaily : transportDaily
         let totalAllotted = dailyAllotment * Decimal(previousDays.count)
 
+        let unstashed = filterStashed(expenses)
+
         // Calculate spent on previous days
         let categoryExpenses: [Expense]
         switch category {
         case .perDiem:
-            categoryExpenses = expenses.filter { expense in
+            categoryExpenses = unstashed.filter { expense in
                 expense.category == ExpenseCategory.food.rawValue &&
                 previousDays.contains { previousDay in
                     calendar.startOfDay(for: previousDay) == calendar.startOfDay(for: expense.date)
                 }
             }
         case .transport:
-            categoryExpenses = expenses.filter { expense in
+            categoryExpenses = unstashed.filter { expense in
                 expense.category == ExpenseCategory.transport.rawValue &&
                 previousDays.contains { previousDay in
                     calendar.startOfDay(for: previousDay) == calendar.startOfDay(for: expense.date)
