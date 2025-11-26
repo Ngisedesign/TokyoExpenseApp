@@ -15,7 +15,7 @@ struct BudgetTracker {
     static let flightBudgetBaseline: Decimal = 3600  // Max allowed
     static let hotelNightly: Decimal = 345
     static let hotelWorkNights: Int = 5          // Work nights budgeted
-    static let hotelAllNights: Int = 9           // All trip nights (Nov 28-Dec 7)
+    static let hotelAllNights: Int = 8           // All trip nights (check-in Nov 29, checkout Dec 7)
 
     /// Default exchange rate: 1 USD = 150 JPY
     /// Used as fallback when actual exchange rate is not available
@@ -41,33 +41,19 @@ struct BudgetTracker {
         hotelNightly * Decimal(hotelWorkNights)
     }
 
-    /// Calculate dynamic per diem budget including flight/hotel savings
+    /// Calculate per diem budget based on number of days
     /// - Parameters:
-    ///   - expenses: All expenses
-    ///   - includeTravelDays: If true, uses 10 days and adds savings
-    /// - Returns: Available per diem budget
+    ///   - expenses: All expenses (not used in simplified version)
+    ///   - includeTravelDays: If true, uses 10 days; if false, uses 5 work days
+    /// - Returns: Per diem budget
     static func dynamicPerDiemBudget(from expenses: [Expense], includeTravelDays: Bool) -> Decimal {
-        if !includeTravelDays {
-            // Work days only: Standard 5 days × $80 = $400
+        if includeTravelDays {
+            // All trip days: 10 days × $80 = $800
+            return perDiemDaily * Decimal(perDiemAllDays)
+        } else {
+            // Work days only: 5 days × $80 = $400
             return perDiemBudget
         }
-
-        // Travel days included: Calculate dynamic budget
-        // Base: 10 days × $80 = $800
-        var available = perDiemDaily * Decimal(perDiemAllDays)
-
-        // Add flight savings (if flight cost less than $3,600)
-        let flightSpent = spentByCategory(.flight, from: expenses, includeTravelDays: true)
-        let flightSavings = max(0, flightBudgetBaseline - flightSpent)
-        available += flightSavings
-
-        // Add hotel savings (if hotel cost less than budgeted)
-        let hotelSpent = spentByCategory(.hotel, from: expenses, includeTravelDays: true)
-        let hotelBudgeted = hotelNightly * Decimal(hotelAllNights)  // 9 nights
-        let hotelSavings = max(0, hotelBudgeted - hotelSpent)
-        available += hotelSavings
-
-        return available
     }
 
     // MARK: - Budget Categories
@@ -123,7 +109,15 @@ struct BudgetTracker {
 
     /// Calculate spent per category
     static func spentByCategory(_ category: BudgetCategory, from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
-        let filteredExpenses = includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
+        // Flight and Hotel are trip-wide fixed costs, not subject to daily work day filtering
+        let filteredExpenses: [Expense]
+        if category == .flight || category == .hotel {
+            // Always include all expenses for fixed costs
+            filteredExpenses = expenses
+        } else {
+            // Filter by work days for daily discretionary spending (Food, Transport)
+            filteredExpenses = includeTravelDays ? expenses : expenses.filter { $0.isWorkDay }
+        }
 
         let categoryExpenses: [Expense]
         switch category {
