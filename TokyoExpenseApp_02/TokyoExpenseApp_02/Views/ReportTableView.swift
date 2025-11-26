@@ -22,7 +22,7 @@ struct ReportTableView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Header
                 headerRow
-                    .background(Color(uiColor: .systemGray6))
+                    .background(AppTheme.Backgrounds.lightGray)
                 
                 Divider()
                 
@@ -39,7 +39,7 @@ struct ReportTableView: View {
                     
                     // Total Row
                     totalRow
-                        .background(Color(uiColor: .systemGray6).opacity(0.3))
+                        .background(AppTheme.Backgrounds.lightGray.opacity(0.3))
                 }
             }
             .frame(minWidth: colWidths.reduce(0, +) + 20, maxWidth: .infinity, alignment: .topLeading)
@@ -136,7 +136,7 @@ struct ReportTableView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 8)
-        .background(index % 2 == 0 ? Color.clear : Color(uiColor: .systemGray6).opacity(0.5))
+        .background(index % 2 == 0 ? Color.clear : AppTheme.Backgrounds.lightGray.opacity(0.5))
     }
     
     private var totalRow: some View {
@@ -182,12 +182,12 @@ struct ReportTableView: View {
     
     private func expenseCategoryColor(_ category: String) -> Color {
         switch category {
-        case "Food": return Color(hue: 0.58, saturation: 0.45, brightness: 0.85) // Desaturated blue
-        case "Transport": return Color(hue: 0.33, saturation: 0.40, brightness: 0.70) // Desaturated green
-        case "Hotel": return Color(hue: 0.75, saturation: 0.40, brightness: 0.75) // Desaturated purple
-        case "Flight": return Color(hue: 0.53, saturation: 0.45, brightness: 0.80) // Desaturated cyan
-        case "Other": return Color(hue: 0.0, saturation: 0.0, brightness: 0.60) // Desaturated gray
-        default: return Color(hue: 0.0, saturation: 0.0, brightness: 0.60)
+        case "Food": return AppTheme.CategoryColors.food
+        case "Transport": return AppTheme.CategoryColors.transport
+        case "Hotel": return AppTheme.CategoryColors.hotel
+        case "Flight": return AppTheme.CategoryColors.flight
+        case "Other": return AppTheme.CategoryColors.other
+        default: return AppTheme.CategoryColors.other
         }
     }
     

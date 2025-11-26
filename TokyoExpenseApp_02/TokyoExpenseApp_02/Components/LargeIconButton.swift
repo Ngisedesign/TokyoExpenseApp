@@ -18,7 +18,7 @@ struct LargeIconButton: View {
     init(
         icon: String,
         size: CGFloat = 32,
-        color: Color = .black,
+        color: Color = .primary,
         action: @escaping () -> Void
     ) {
         self.icon = icon

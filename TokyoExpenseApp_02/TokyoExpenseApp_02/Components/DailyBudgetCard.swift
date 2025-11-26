@@ -33,7 +33,7 @@ struct DailyBudgetCard: View {
                 if remaining < 0 {
                     Text(CurrencyFormatter.format(usd: abs(remaining), showYen: showYen))
                         .font(.title3)
-                        .foregroundStyle(Color(hue: 0.0, saturation: 0.75, brightness: 0.55))
+                        .foregroundStyle(AppTheme.SemanticColors.overspending)
                 }
             }
         }

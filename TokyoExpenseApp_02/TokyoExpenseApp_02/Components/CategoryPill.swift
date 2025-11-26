@@ -8,8 +8,8 @@
 import SwiftUI
 
 /// Pill-shaped button for category selection
-/// Selected state: black background with white text
-/// Unselected state: light gray background with black text
+/// Selected state: dark background with white/light text
+/// Unselected state: light gray background with dark text (adapts to dark mode)
 struct CategoryPill: View {
     let text: String
     let isSelected: Bool
@@ -20,12 +20,12 @@ struct CategoryPill: View {
             Text(text)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(isSelected ? .white : .black)
+                .foregroundStyle(isSelected ? .white : AppTheme.SemanticColors.pillForeground)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)
                 .background(
                     Capsule()
-                        .fill(isSelected ? .black : .black.opacity(0.05))
+                        .fill(isSelected ? AppTheme.SemanticColors.pillForeground : AppTheme.SemanticColors.pillBackground)
                 )
         }
     }
