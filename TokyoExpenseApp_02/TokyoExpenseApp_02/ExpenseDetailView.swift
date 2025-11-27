@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import PDFKit
 
 // MARK: - REFACTORING OPPORTUNITY
 // ============================================================================
@@ -57,9 +58,11 @@ struct ExpenseDetailView: View {
     @State private var showReplaceOptions = false
     @State private var showCamera = false
     @State private var showLibraryPicker = false
+    @State private var showDocumentPicker = false
 
     @State private var capturedImage: UIImage? = nil
     @State private var imageToReplacePath: String? = nil
+    @State private var originalPDFData: Data? = nil
 
     init(expense: Expense) {
         self.expense = expense
@@ -314,6 +317,7 @@ struct ExpenseDetailView: View {
         .confirmationDialog("Replace receipt image", isPresented: $showReplaceOptions, titleVisibility: .visible) {
             Button("Choose from Library") { showLibraryPicker = true }
             Button("Take Photo") { showCamera = true }
+            Button("Import PDF") { showDocumentPicker = true }
             Button("Cancel", role: .cancel) { }
         }
         .fullScreenCover(isPresented: $showLibraryPicker) {
@@ -323,6 +327,22 @@ struct ExpenseDetailView: View {
         .fullScreenCover(isPresented: $showCamera) {
             ImagePickerController(image: $capturedImage, sourceType: .camera)
                 .edgesIgnoringSafeArea(.all)
+        }
+        .sheet(isPresented: $showDocumentPicker) {
+            DocumentPicker { url in
+                if let pdfData = try? Data(contentsOf: url),
+                   let document = PDFDocument(data: pdfData) {
+
+                    // Store original PDF data
+                    originalPDFData = pdfData
+
+                    // Convert to image for display
+                    let converter = PDFConverter()
+                    if let stitchedImage = converter.stitchPDFPages(document: document) {
+                        capturedImage = stitchedImage
+                    }
+                }
+            }
         }
         .onChange(of: capturedImage) { oldValue, newValue in
             if let image = newValue {
@@ -379,19 +399,39 @@ struct ExpenseDetailView: View {
     // REFACTOR: Extract image management to shared ImageManager or ExpenseFormViewModel
     // Similar logic in AddEntryView (lines 616-636) but for saving new image vs replacing
     private func replaceReceiptImage(with newImage: UIImage) {
-        guard let newFilename = ImageManager.shared.saveImage(newImage) else {
+        // Generate a UUID for this receipt
+        let uuid = UUID().uuidString
+        let jpgFilename = "\(uuid).jpg"
+
+        // Save the image (JPG)
+        guard let jpgData = newImage.jpegData(compressionQuality: 0.8),
+              ImageManager.shared.saveRawData(jpgData, filename: jpgFilename) else {
             print("❌ Failed to save new receipt image")
             return
         }
 
+        // If we have original PDF data, save it too with the same UUID
+        if let pdfData = originalPDFData {
+            let pdfFilename = "\(uuid).pdf"
+            if ImageManager.shared.saveRawData(pdfData, filename: pdfFilename) {
+                print("💾 Saved original PDF: \(pdfFilename)")
+            }
+        }
+
         if let oldPath = imageToReplacePath,
            let index = expense.receiptImagePaths.firstIndex(of: oldPath) {
-            // Delete old image file and replace path
+            // Delete old image file (and PDF if it exists) and replace path
             ImageManager.shared.deleteImage(oldPath)
-            expense.receiptImagePaths[index] = newFilename
+
+            // Also delete associated PDF if it exists
+            let oldUUID = (oldPath as NSString).deletingPathExtension
+            let oldPDFPath = "\(oldUUID).pdf"
+            ImageManager.shared.deleteImage(oldPDFPath)
+
+            expense.receiptImagePaths[index] = jpgFilename
         } else {
             // If no specific image selected, append
-            expense.receiptImagePaths.append(newFilename)
+            expense.receiptImagePaths.append(jpgFilename)
         }
 
         do {
@@ -403,6 +443,7 @@ struct ExpenseDetailView: View {
 
         // Reset selection state
         imageToReplacePath = nil
+        originalPDFData = nil
     }
 
 

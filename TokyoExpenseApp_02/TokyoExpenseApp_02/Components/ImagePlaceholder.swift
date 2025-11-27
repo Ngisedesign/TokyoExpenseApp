@@ -32,7 +32,7 @@ struct ImagePlaceholder: View {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 80, weight: .bold))
-                    .foregroundStyle(.black.opacity(0.30))
+                    .foregroundStyle(.secondary)
 
                 Text(text)
                     .font(.title3)
@@ -43,12 +43,12 @@ struct ImagePlaceholder: View {
             .frame(height: height)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.black.opacity(0.02))
+                    .fill(.primary.opacity(0.03))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
-                    .foregroundStyle(.black.opacity(0.1))
+                    .foregroundStyle(.primary.opacity(0.2))
             )
         }
     }

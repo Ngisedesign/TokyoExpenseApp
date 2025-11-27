@@ -148,38 +148,81 @@ struct AddEntryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(.black.opacity(0.1), lineWidth: 1)
+                            .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
                     )
                     .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
                     .onTapGesture {
                         showLibraryPicker = true
                     }
+
+                imageCaptureButtons
             } else {
-                ImagePlaceholder(
-                    icon: "photo.fill",
-                    text: "Add Image",
-                    height: 180
-                ) {
-                    showLibraryPicker = true
+                // Show 3 icon buttons in triangle formation (1 top, 2 bottom)
+                VStack(spacing: 16) {
+                    // Top row: Library button (centered)
+                    Button {
+                        showLibraryPicker = true
+                    } label: {
+                        Image(systemName: "photo.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.gray.opacity(0.8))
+                            .frame(width: 50, height: 50)
+                            .background(Circle().fill(.white))
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    }
+
+                    // Bottom row: Camera and PDF buttons
+                    HStack(spacing: 16) {
+                        Button {
+                            showCamera = true
+                        } label: {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(.gray.opacity(0.8))
+                                .frame(width: 50, height: 50)
+                                .background(Circle().fill(.white))
+                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        }
+
+                        Button {
+                            showDocumentPicker = true
+                        } label: {
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(.gray.opacity(0.8))
+                                .frame(width: 40, height: 40)
+                                .background(Circle().fill(.white))
+                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        }
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.primary.opacity(0.03))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
+                        .foregroundStyle(.primary.opacity(0.2))
+                )
                 .frame(width: 120)
             }
-
-            imageCaptureButtons
         }
     }
 
     private var imageCaptureButtons: some View {
-        HStack(spacing: 40) {
+        HStack(spacing: 12) {
             // Camera button
             Button {
                 showCamera = true
             } label: {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.gray.opacity(0.8))
+                    .foregroundStyle(.primary)
                     .padding(8)
-                    .background(Circle().fill(.white))
+                    .background(Circle().fill(.ultraThinMaterial))
                     .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
 
@@ -189,9 +232,9 @@ struct AddEntryView: View {
             } label: {
                 Image(systemName: "doc.fill")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.gray.opacity(0.8))
+                    .foregroundStyle(.primary)
                     .padding(8)
-                    .background(Circle().fill(.white))
+                    .background(Circle().fill(.ultraThinMaterial))
                     .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
         }
