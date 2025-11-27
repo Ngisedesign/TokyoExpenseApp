@@ -158,42 +158,45 @@ struct AddEntryView: View {
                 imageCaptureButtons
             } else {
                 // Show 3 icon buttons in triangle formation (1 top, 2 bottom)
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     // Top row: Library button (centered)
                     Button {
                         showLibraryPicker = true
                     } label: {
                         Image(systemName: "photo.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.gray.opacity(0.8))
-                            .frame(width: 50, height: 50)
-                            .background(Circle().fill(.white))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 42, height: 42)
+                            .background(Circle().fill(.ultraThinMaterial))
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     }
+                    .buttonStyle(.plain)
 
                     // Bottom row: Camera and PDF buttons
-                    HStack(spacing: 16) {
+                    HStack(spacing: 12) {
                         Button {
                             showCamera = true
                         } label: {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(.gray.opacity(0.8))
-                                .frame(width: 50, height: 50)
-                                .background(Circle().fill(.white))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 42, height: 42)
+                                .background(Circle().fill(.ultraThinMaterial))
                                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
+                        .buttonStyle(.plain)
 
                         Button {
                             showDocumentPicker = true
                         } label: {
                             Image(systemName: "doc.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundStyle(.gray.opacity(0.8))
-                                .frame(width: 40, height: 40)
-                                .background(Circle().fill(.white))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 42, height: 42)
+                                .background(Circle().fill(.ultraThinMaterial))
                                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .frame(maxWidth: .infinity)
