@@ -28,7 +28,7 @@ struct LabeledField<Content: View>: View {
         VStack(alignment: .leading, spacing: spacing) {
             Text(label)
                 .font(.headline)
-                .foregroundStyle(.black)
+                .foregroundStyle(.secondary)
 
             content()
         }
