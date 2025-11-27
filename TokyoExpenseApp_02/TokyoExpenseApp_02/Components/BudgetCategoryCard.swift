@@ -23,7 +23,7 @@ struct BudgetCategoryCard: View {
     }
 
     private var canExpand: Bool {
-        (category == .perDiem || category == .transport) && !includeTravelDays
+        (category == .perDiem || category == .transport || category == .hotel) && !includeTravelDays
     }
 
     private var displayName: String {
@@ -88,12 +88,22 @@ struct BudgetCategoryCard: View {
 
     // MARK: - Daily Breakdown
 
-    @ViewBuilder
     private var dailyBreakdown: some View {
         let dailySpending = getDailySpending()
-        let dailyBudget = category == .perDiem ? BudgetTracker.perDiemDaily : BudgetTracker.transportDaily
 
-        VStack(spacing: 8) {
+        let dailyBudget: Decimal
+        switch category {
+        case .perDiem:
+            dailyBudget = BudgetTracker.perDiemDaily
+        case .transport:
+            dailyBudget = BudgetTracker.transportDaily
+        case .hotel:
+            dailyBudget = BudgetTracker.hotelNightly
+        default:
+            dailyBudget = 0
+        }
+
+        return VStack(spacing: 8) {
             ForEach(BudgetTracker.allWorkDays(), id: \.self) { day in
                 DailyBudgetCard(
                     day: day,
@@ -110,6 +120,8 @@ struct BudgetCategoryCard: View {
             return BudgetTracker.dailyPerDiemSpending(from: expenses)
         } else if category == .transport {
             return BudgetTracker.dailyTransportSpending(from: expenses)
+        } else if category == .hotel {
+            return BudgetTracker.dailyHotelSpending(from: expenses)
         } else {
             return [:]
         }

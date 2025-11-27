@@ -80,7 +80,8 @@ struct AddEntryView: View {
     }
     @State private var currency: Currency = .jpy
     @State private var originalPDFData: Data? = nil
-
+    @State private var checkInDate: Date = BudgetTracker.tripStartDate
+    @State private var checkOutDate: Date = Calendar.current.date(byAdding: .day, value: 1, to: BudgetTracker.tripStartDate) ?? BudgetTracker.tripStartDate
 
     var autoLaunchCamera: Bool = false
     var initialImage: UIImage? = nil
@@ -437,6 +438,101 @@ struct AddEntryView: View {
     }
 
     @ViewBuilder
+    private var hotelDatesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Hotel Stay")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            LabeledField(label: "Check-in", spacing: 8) {
+                DatePicker("", selection: $checkInDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.black.opacity(0.03))
+                    )
+            }
+
+            LabeledField(label: "Check-out", spacing: 8) {
+                DatePicker("", selection: $checkOutDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.black.opacity(0.03))
+                    )
+            }
+
+            // Validation warning
+            if checkOutDate <= checkInDate {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Check-out must be after check-in")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            // Show proration info
+            hotelProrationInfo
+        }
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var hotelProrationInfo: some View {
+        let totalNights = BudgetTracker.calculateTotalNights(checkIn: checkInDate, checkOut: checkOutDate)
+        let workNights = BudgetTracker.calculateWorkNights(checkIn: checkInDate, checkOut: checkOutDate)
+
+        if totalNights > 0 {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Total nights:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(totalNights)")
+                        .font(.caption)
+                }
+
+                HStack {
+                    Text("Work nights (Dec 1-5):")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(workNights)")
+                        .font(.caption)
+                }
+
+                if let amount = Decimal(string: amountString), amount > 0 {
+                    let perNight = amount / Decimal(totalNights)
+                    HStack {
+                        Text("Per night:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(CurrencyFormatter.format(usd: perNight, showYen: false))
+                            .font(.caption)
+                    }
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.blue.opacity(0.05))
+            )
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
     private var ocrProcessingIndicator: some View {
         if isProcessingOCR {
             HStack {
@@ -493,6 +589,12 @@ struct AddEntryView: View {
             .onChange(of: ocrError) { oldValue, newValue in
                 handleOCRErrorChange(newValue)
             }
+            .onChange(of: category) { oldValue, newValue in
+                if newValue == .hotel {
+                    checkInDate = BudgetTracker.tripStartDate
+                    checkOutDate = BudgetTracker.tripEndDate
+                }
+            }
             .onAppear {
                 handleOnAppear()
             }
@@ -513,6 +615,12 @@ struct AddEntryView: View {
                         merchantField
                         descriptionField
                         amountField
+
+                        // Hotel-specific date range picker
+                        if category == .hotel {
+                            hotelDatesSection
+                        }
+
                         Spacer(minLength: 100)
                     }
                 }
@@ -667,6 +775,18 @@ struct AddEntryView: View {
             let dateFormatter = DateFormatter()
             dateFormatter.dateStyle = .medium
             return "Date must be within trip dates (\(dateFormatter.string(from: tripStart)) - \(dateFormatter.string(from: tripEnd))), allowing 30 days before for advance purchases."
+        }
+
+        // Hotel-specific validation
+        if category == .hotel {
+            if checkOutDate <= checkInDate {
+                return "Check-out date must be after check-in date."
+            }
+
+            let totalNights = BudgetTracker.calculateTotalNights(checkIn: checkInDate, checkOut: checkOutDate)
+            if totalNights == 0 {
+                return "Hotel stay must be at least one night."
+            }
         }
 
         return nil
@@ -886,7 +1006,9 @@ struct AddEntryView: View {
             isWorkDay: BudgetTracker.isWorkDay(date),
             isManualEntry: ocrConfidence == nil,
             ocrConfidence: ocrConfidence,
-            needsExchangeRateUpdate: needsUpdate
+            needsExchangeRateUpdate: needsUpdate,
+            checkInDate: category == .hotel ? checkInDate : nil,
+            checkOutDate: category == .hotel ? checkOutDate : nil
         )
 
         modelContext.insert(expense)

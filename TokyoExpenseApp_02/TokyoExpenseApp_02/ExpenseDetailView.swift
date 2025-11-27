@@ -63,6 +63,8 @@ struct ExpenseDetailView: View {
     @State private var capturedImage: UIImage? = nil
     @State private var imageToReplacePath: String? = nil
     @State private var originalPDFData: Data? = nil
+    @State private var checkInDate: Date
+    @State private var checkOutDate: Date
 
     init(expense: Expense) {
         self.expense = expense
@@ -72,6 +74,10 @@ struct ExpenseDetailView: View {
         _category = State(initialValue: ExpenseCategory(rawValue: expense.category) ?? .food)
         _amountString = State(initialValue: String(describing: expense.amountJPY))
         _currency = State(initialValue: .jpy)
+
+        // Initialize hotel dates
+        _checkInDate = State(initialValue: expense.checkInDate ?? expense.date)
+        _checkOutDate = State(initialValue: expense.checkOutDate ?? Calendar.current.date(byAdding: .day, value: 1, to: expense.date) ?? expense.date)
     }
 
     var body: some View {
@@ -252,6 +258,11 @@ struct ExpenseDetailView: View {
                                 )
                             }
 
+                            // Hotel dates section
+                            if category == .hotel {
+                                hotelDatesSection
+                            }
+
                             // NOTE: This section is unique to ExpenseDetailView (read-only data display)
                             // AddEntryView doesn't have this since there's no existing expense to show
                             // Additional Info
@@ -352,6 +363,74 @@ struct ExpenseDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var hotelDatesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Hotel Stay")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            LabeledField(label: "Check-in") {
+                DatePicker("", selection: $checkInDate, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.black.opacity(0.03))
+                    )
+            }
+
+            LabeledField(label: "Check-out") {
+                DatePicker("", selection: $checkOutDate, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.black.opacity(0.03))
+                    )
+            }
+
+            if checkOutDate > checkInDate {
+                let totalNights = BudgetTracker.calculateTotalNights(checkIn: checkInDate, checkOut: checkOutDate)
+                let workNights = BudgetTracker.calculateWorkNights(checkIn: checkInDate, checkOut: checkOutDate)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Total nights:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(totalNights)")
+                            .font(.caption)
+                    }
+                    HStack {
+                        Text("Work nights:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(workNights)")
+                            .font(.caption)
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.blue.opacity(0.05))
+                )
+            } else {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Check-out must be after check-in")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
     // REFACTOR: Extract validation to shared utility or ExpenseFormViewModel
     // Similar logic in AddEntryView (lines 551-578) but with additional date validation
     var canSave: Bool {
@@ -370,6 +449,15 @@ struct ExpenseDetailView: View {
 
         // Recalculate work day flag when date changes
         expense.isWorkDay = BudgetTracker.isWorkDay(date)
+
+        // Update hotel dates
+        if category == .hotel {
+            expense.checkInDate = checkInDate
+            expense.checkOutDate = checkOutDate
+        } else {
+            expense.checkInDate = nil
+            expense.checkOutDate = nil
+        }
 
         // Update amount if changed
         if let newAmount = Decimal(string: amountString) {

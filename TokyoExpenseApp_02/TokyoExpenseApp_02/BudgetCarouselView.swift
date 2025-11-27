@@ -71,6 +71,7 @@ struct BudgetCarouselView: View {
 
 // Budget content extracted from BudgetView
 struct BudgetContentView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.date, order: .forward) private var expenses: [Expense]
     @AppStorage("includeTravelDays") private var includeTravelDays = false
     @AppStorage("showYen") private var showYen = true
@@ -139,6 +140,14 @@ struct BudgetContentView: View {
             }
             .padding(.top, 8)
             .padding(.bottom)
+        }
+        .onAppear {
+            // Run hotel migration once
+            let migrationKey = "hotelDatesMigrationCompleted_v1"
+            if !UserDefaults.standard.bool(forKey: migrationKey) {
+                HotelMigration.migrateHotelExpenses(modelContext: modelContext)
+                UserDefaults.standard.set(true, forKey: migrationKey)
+            }
         }
     }
 

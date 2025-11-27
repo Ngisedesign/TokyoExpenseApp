@@ -19,6 +19,8 @@ final class Expense {
     var notes: String?
     var needsExchangeRateUpdate: Bool?
     var isStashed: Bool?
+    var checkInDate: Date?      // Hotel check-in date
+    var checkOutDate: Date?     // Hotel check-out date
 
     init(
         id: UUID = UUID(),
@@ -36,7 +38,9 @@ final class Expense {
         ocrConfidence: Float? = nil,
         notes: String? = nil,
         needsExchangeRateUpdate: Bool? = false,
-        isStashed: Bool? = false
+        isStashed: Bool? = false,
+        checkInDate: Date? = nil,
+        checkOutDate: Date? = nil
     ) {
         self.id = id
         self.date = date
@@ -54,6 +58,8 @@ final class Expense {
         self.notes = notes
         self.needsExchangeRateUpdate = needsExchangeRateUpdate
         self.isStashed = isStashed
+        self.checkInDate = checkInDate
+        self.checkOutDate = checkOutDate
     }
 
     var isIncomplete: Bool {

@@ -111,8 +111,28 @@ struct BudgetTracker {
     /// Calculate total spent across all expenses
     static func totalSpent(from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
         let unstashed = filterStashed(expenses)
-        let filteredExpenses = includeTravelDays ? unstashed : unstashed.filter { $0.isWorkDay }
-        return filteredExpenses.reduce(0) { $0 + $1.amountUSD }
+
+        // Separate hotel expenses for proration
+        let hotelExpenses = unstashed.filter { $0.category == ExpenseCategory.hotel.rawValue }
+        let flightExpenses = unstashed.filter { $0.category == ExpenseCategory.flight.rawValue }
+        let otherExpenses = unstashed.filter {
+            $0.category != ExpenseCategory.hotel.rawValue &&
+            $0.category != ExpenseCategory.flight.rawValue
+        }
+
+        // Hotel with proration
+        let hotelSpent = hotelExpenses.reduce(0) { total, expense in
+            total + proratedHotelAmount(expense: expense, includeTravelDays: includeTravelDays)
+        }
+
+        // Flight always counts in full
+        let flightSpent = flightExpenses.reduce(0) { $0 + $1.amountUSD }
+
+        // Others with work day filtering
+        let filteredOthers = includeTravelDays ? otherExpenses : otherExpenses.filter { $0.isWorkDay }
+        let otherSpent = filteredOthers.reduce(0) { $0 + $1.amountUSD }
+
+        return hotelSpent + flightSpent + otherSpent
     }
 
     /// Calculate spent per category
@@ -141,7 +161,14 @@ struct BudgetTracker {
             categoryExpenses = filteredExpenses.filter { $0.category == ExpenseCategory.hotel.rawValue }
         }
 
-        return categoryExpenses.reduce(0) { $0 + $1.amountUSD }
+        // Apply hotel proration
+        if category == .hotel {
+            return categoryExpenses.reduce(0) { total, expense in
+                total + proratedHotelAmount(expense: expense, includeTravelDays: includeTravelDays)
+            }
+        } else {
+            return categoryExpenses.reduce(0) { $0 + $1.amountUSD }
+        }
     }
 
     /// Calculate daily per diem spending for work days
@@ -222,6 +249,120 @@ struct BudgetTracker {
     /// Remaining budget
     static func remainingBudget(from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
         totalBudget - totalSpent(from: expenses, includeTravelDays: includeTravelDays)
+    }
+
+    // MARK: - Hotel Proration Utilities
+
+    /// Calculate the number of work nights for a hotel stay
+    /// Work nights = nights where BOTH check-in and check-out fall within Dec 1-5
+    static func calculateWorkNights(checkIn: Date, checkOut: Date) -> Int {
+        let calendar = Calendar.current
+
+        // Work period: Dec 1-5, 2025 (full days)
+        guard let workStart = calendar.date(from: DateComponents(year: 2025, month: 12, day: 1)),
+              let workEnd = calendar.date(from: DateComponents(year: 2025, month: 12, day: 5, hour: 23, minute: 59))
+        else {
+            return 0
+        }
+
+        let totalNights = calendar.dateComponents([.day], from: checkIn, to: checkOut).day ?? 0
+        guard totalNights > 0 else { return 0 }
+
+        var workNights = 0
+
+        // Iterate through each night
+        for nightIndex in 0..<totalNights {
+            guard let nightStart = calendar.date(byAdding: .day, value: nightIndex, to: checkIn),
+                  let nightEnd = calendar.date(byAdding: .day, value: nightIndex + 1, to: checkIn)
+            else {
+                continue
+            }
+
+            // A night is a "work night" if BOTH check-in and check-out fall within work period
+            let nightStartInWorkPeriod = nightStart >= workStart && nightStart <= workEnd
+            let nightEndInWorkPeriod = nightEnd >= workStart && nightEnd <= calendar.date(byAdding: .day, value: 1, to: workEnd)!
+
+            if nightStartInWorkPeriod && nightEndInWorkPeriod {
+                workNights += 1
+            }
+        }
+
+        return workNights
+    }
+
+    /// Calculate total nights for a hotel stay
+    static func calculateTotalNights(checkIn: Date, checkOut: Date) -> Int {
+        let calendar = Calendar.current
+        let nights = calendar.dateComponents([.day], from: checkIn, to: checkOut).day ?? 0
+        return max(nights, 0)
+    }
+
+    /// Get prorated amount for a hotel expense based on work days
+    static func proratedHotelAmount(expense: Expense, includeTravelDays: Bool) -> Decimal {
+        guard expense.category == ExpenseCategory.hotel.rawValue else {
+            return expense.amountUSD
+        }
+
+        // If no check-in/check-out dates, return full amount (legacy expenses)
+        guard let checkIn = expense.checkInDate,
+              let checkOut = expense.checkOutDate else {
+            return expense.amountUSD
+        }
+
+        let totalNights = calculateTotalNights(checkIn: checkIn, checkOut: checkOut)
+        guard totalNights > 0 else { return 0 }
+
+        let workNights = calculateWorkNights(checkIn: checkIn, checkOut: checkOut)
+        let perNightRate = expense.amountUSD / Decimal(totalNights)
+
+        if includeTravelDays {
+            return expense.amountUSD  // All nights
+        } else {
+            return perNightRate * Decimal(workNights)  // Only work nights
+        }
+    }
+
+    /// Get nightly breakdown of a hotel expense for daily view display
+    static func hotelNightlyBreakdown(expense: Expense) -> [Date: Decimal] {
+        guard expense.category == ExpenseCategory.hotel.rawValue,
+              let checkIn = expense.checkInDate,
+              let checkOut = expense.checkOutDate else {
+            return [:]
+        }
+
+        let calendar = Calendar.current
+        let totalNights = calculateTotalNights(checkIn: checkIn, checkOut: checkOut)
+        guard totalNights > 0 else { return [:] }
+
+        let perNightRate = expense.amountUSD / Decimal(totalNights)
+        var breakdown: [Date: Decimal] = [:]
+
+        for nightIndex in 0..<totalNights {
+            guard let nightDate = calendar.date(byAdding: .day, value: nightIndex, to: checkIn) else {
+                continue
+            }
+            let nightStart = calendar.startOfDay(for: nightDate)
+            breakdown[nightStart] = perNightRate
+        }
+
+        return breakdown
+    }
+
+    /// Calculate daily hotel spending (prorated per night)
+    static func dailyHotelSpending(from expenses: [Expense]) -> [Date: Decimal] {
+        var dailySpending: [Date: Decimal] = [:]
+
+        let unstashed = filterStashed(expenses)
+        let hotelExpenses = unstashed.filter { $0.category == ExpenseCategory.hotel.rawValue }
+
+        for expense in hotelExpenses {
+            let breakdown = hotelNightlyBreakdown(expense: expense)
+            for (night, amount) in breakdown {
+                dailySpending[night, default: 0] += amount
+            }
+        }
+
+        return dailySpending
     }
 
     // MARK: - Daily Rollover Calculations
