@@ -16,7 +16,7 @@ class PDFExporter {
     // No (5%), Date (12%), Category (10%), Merchant (18%), Description (20%), JPY (10%), Rate (8%), USD (10%), Rec (7%)
     private let colWidths: [CGFloat] = [25, 60, 50, 90, 100, 50, 40, 50, 35]
     
-    func createPDF(expenses: [Expense], filenameMap: [UUID: [String]]) -> Data {
+    func createPDF(expenses: [Expense], filenameMap: [UUID: [String]], includeTravelDays: Bool = false) -> Data {
         let format = UIGraphicsPDFRendererFormat()
         let metaData = [
             kCGPDFContextTitle: "Expense Report",
@@ -53,7 +53,7 @@ class PDFExporter {
                 context.beginPage()
                 currentY = margin
             }
-            drawTotal(context: context.cgContext, expenses: expenses, y: &currentY)
+            drawTotal(context: context.cgContext, expenses: expenses, includeTravelDays: includeTravelDays, y: &currentY)
             
             // Draw Footer
             if currentY > pageHeight - margin - 100 {
@@ -257,9 +257,17 @@ class PDFExporter {
         y += rowHeight
     }
     
-    private func drawTotal(context: CGContext, expenses: [Expense], y: inout CGFloat) {
+    private func drawTotal(context: CGContext, expenses: [Expense], includeTravelDays: Bool, y: inout CGFloat) {
         y += 10
-        let totalUSD = expenses.reduce(Decimal(0)) { $0 + $1.amountUSD }
+
+        // Apply hotel proration to total
+        let totalUSD = expenses.reduce(Decimal(0)) { sum, expense in
+            if expense.category == ExpenseCategory.hotel.rawValue {
+                return sum + BudgetTracker.proratedHotelAmount(expense: expense, includeTravelDays: includeTravelDays)
+            } else {
+                return sum + expense.amountUSD
+            }
+        }
         
         let text = "Grand Total: \(CurrencyFormatter.format(usd: totalUSD, showYen: false))"
         let attributes: [NSAttributedString.Key: Any] = [

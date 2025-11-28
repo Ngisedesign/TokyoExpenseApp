@@ -3,6 +3,7 @@ import SwiftUI
 struct ReportTableView: View {
     let expenses: [Expense]
     let showYen: Bool
+    let includeTravelDays: Bool
     var onExpenseTap: (Expense) -> Void
     
     // Fixed column widths for consistent alignment
@@ -63,12 +64,15 @@ struct ReportTableView: View {
     }
     
     private func row(for expense: Expense, index: Int) -> some View {
-        HStack(alignment: .top, spacing: 0) {
+        let displayUSD = getDisplayUSD(for: expense)
+        let displayJPY = getDisplayJPY(for: expense)
+
+        return HStack(alignment: .top, spacing: 0) {
             // Date
             Text(formatDate(expense.date))
                 .font(.caption)
                 .frame(width: colWidths[0], alignment: .leading)
-            
+
             // Category
             Text(expense.category)
                 .font(.caption)
@@ -80,34 +84,34 @@ struct ReportTableView: View {
                 )
                 .foregroundStyle(expenseCategoryColor(expense.category))
                 .frame(width: colWidths[1], alignment: .leading)
-            
+
             // Merchant
             Text(expense.merchantName)
                 .font(.caption)
                 .fontWeight(.medium)
                 .lineLimit(1)
                 .frame(width: colWidths[2], alignment: .leading)
-            
+
             // Description
             Text(expense.expenseDescription)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .frame(width: colWidths[3], alignment: .leading)
-            
-            // JPY
-            Text(CurrencyFormatter.format(yen: expense.amountJPY, showYen: true))
+
+            // JPY (apply proration for hotel)
+            Text(CurrencyFormatter.format(yen: displayJPY, showYen: true))
                 .font(.caption)
                 .frame(width: colWidths[4], alignment: .trailing)
-            
+
             // Rate
             Text(String(format: "%.2f", NSDecimalNumber(decimal: expense.exchangeRate).doubleValue))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .frame(width: colWidths[5], alignment: .trailing)
-            
-            // USD
-            Text(CurrencyFormatter.format(usd: expense.amountUSD, showYen: false))
+
+            // USD (prorated for hotel)
+            Text(CurrencyFormatter.format(usd: displayUSD, showYen: false))
                 .font(.caption)
                 .fontWeight(.semibold)
                 .frame(width: colWidths[6], alignment: .trailing)
@@ -140,8 +144,20 @@ struct ReportTableView: View {
     }
     
     private var totalRow: some View {
-        let totalUSD = expenses.reduce(Decimal(0)) { $0 + $1.amountUSD }
-        let totalJPY = expenses.reduce(Decimal(0)) { $0 + $1.amountJPY }
+        // Calculate totals with hotel proration applied
+        var totalUSD = Decimal(0)
+        var totalJPY = Decimal(0)
+
+        for expense in expenses {
+            if expense.category == ExpenseCategory.hotel.rawValue {
+                let proratedUSD = BudgetTracker.proratedHotelAmount(expense: expense, includeTravelDays: includeTravelDays)
+                totalUSD += proratedUSD
+                totalJPY += proratedUSD * expense.exchangeRate
+            } else {
+                totalUSD += expense.amountUSD
+                totalJPY += expense.amountJPY
+            }
+        }
         
         return HStack(spacing: 0) {
             // Spacer for first 4 columns (Date, Cat, Merch, Desc)
@@ -196,8 +212,25 @@ struct ReportTableView: View {
         formatter.dateFormat = "MMM d" // Short date
         return formatter.string(from: date)
     }
+
+    private func getDisplayUSD(for expense: Expense) -> Decimal {
+        if expense.category == ExpenseCategory.hotel.rawValue {
+            return BudgetTracker.proratedHotelAmount(expense: expense, includeTravelDays: includeTravelDays)
+        } else {
+            return expense.amountUSD
+        }
+    }
+
+    private func getDisplayJPY(for expense: Expense) -> Decimal {
+        if expense.category == ExpenseCategory.hotel.rawValue {
+            let proratedUSD = BudgetTracker.proratedHotelAmount(expense: expense, includeTravelDays: includeTravelDays)
+            return proratedUSD * expense.exchangeRate
+        } else {
+            return expense.amountJPY
+        }
+    }
 }
 
 #Preview {
-    ReportTableView(expenses: [], showYen: true, onExpenseTap: { _ in })
+    ReportTableView(expenses: [], showYen: true, includeTravelDays: false, onExpenseTap: { _ in })
 }

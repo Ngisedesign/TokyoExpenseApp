@@ -73,7 +73,19 @@ struct ExportView: View {
                     .font(.headline)
                 Text("\(filteredExpenses.count) expenses")
                     .foregroundStyle(.secondary)
-                let total = filteredExpenses.reduce(Decimal(0)) { $0 + $1.amountUSD }
+
+                // Apply hotel proration - check if selected range is work days only
+                let isWorkDaysOnly = Calendar.current.isDate(startDate, inSameDayAs: BudgetTracker.workDayStart) &&
+                                    Calendar.current.isDate(endDate, inSameDayAs: BudgetTracker.workDayEnd)
+
+                let total = filteredExpenses.reduce(Decimal(0)) { sum, expense in
+                    if expense.category == ExpenseCategory.hotel.rawValue {
+                        return sum + BudgetTracker.proratedHotelAmount(expense: expense, includeTravelDays: !isWorkDaysOnly)
+                    } else {
+                        return sum + expense.amountUSD
+                    }
+                }
+
                 Text("Total: $\(total.formatted(.number.precision(.fractionLength(2))))")
                     .font(.title3)
                     .fontWeight(.semibold)
@@ -238,7 +250,15 @@ struct ExportView: View {
             try Task.checkCancellation()
 
             // Generate PDF
-            let pdfData = PDFExporter.shared.createPDF(expenses: sortedExpenses, filenameMap: filenameMap)
+            // Determine if we should prorate hotel expenses (work days only vs all days)
+            let isWorkDaysOnly = Calendar.current.isDate(startDate, inSameDayAs: BudgetTracker.workDayStart) &&
+                                Calendar.current.isDate(endDate, inSameDayAs: BudgetTracker.workDayEnd)
+
+            let pdfData = PDFExporter.shared.createPDF(
+                expenses: sortedExpenses,
+                filenameMap: filenameMap,
+                includeTravelDays: !isWorkDaysOnly
+            )
             
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"

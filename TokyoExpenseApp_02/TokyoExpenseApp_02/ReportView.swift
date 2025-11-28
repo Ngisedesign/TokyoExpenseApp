@@ -10,8 +10,24 @@ struct ReportView: View {
 
     private var filteredExpenses: [Expense] {
         let unstashed = expenses.filter { $0.isStashed != true }
-        let list = includeTravelDays ? unstashed : unstashed.filter { $0.isWorkDay }
-        return list.sorted { $0.date < $1.date }
+
+        // Flight and Hotel are trip-wide fixed costs, always include them
+        let flightAndHotel = unstashed.filter {
+            $0.category == ExpenseCategory.flight.rawValue ||
+            $0.category == ExpenseCategory.hotel.rawValue
+        }
+
+        let others = unstashed.filter {
+            $0.category != ExpenseCategory.flight.rawValue &&
+            $0.category != ExpenseCategory.hotel.rawValue
+        }
+
+        // Filter others by work days if needed
+        let filteredOthers = includeTravelDays ? others : others.filter { $0.isWorkDay }
+
+        // Combine and sort
+        let combined = flightAndHotel + filteredOthers
+        return combined.sorted { $0.date < $1.date }
     }
 
     var body: some View {
@@ -40,7 +56,11 @@ struct ReportView: View {
                 .padding(.horizontal)
 
             // Expense Table
-            ReportTableView(expenses: filteredExpenses, showYen: showYen) { expense in
+            ReportTableView(
+                expenses: filteredExpenses,
+                showYen: showYen,
+                includeTravelDays: includeTravelDays
+            ) { expense in
                 selectedExpense = expense
             }
         }
