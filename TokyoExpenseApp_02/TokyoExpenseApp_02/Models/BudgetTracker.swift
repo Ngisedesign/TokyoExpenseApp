@@ -246,6 +246,28 @@ struct BudgetTracker {
         return days
     }
 
+    /// Get all trip days as array (Nov 28 - Dec 7, 2025)
+    static func allTripDays() -> [Date] {
+        var days: [Date] = []
+        let calendar = Calendar.current
+
+        // Nov 28-30
+        for day in 28...30 {
+            if let date = calendar.date(from: DateComponents(year: 2025, month: 11, day: day)) {
+                days.append(date)
+            }
+        }
+
+        // Dec 1-7
+        for day in 1...7 {
+            if let date = calendar.date(from: DateComponents(year: 2025, month: 12, day: day)) {
+                days.append(date)
+            }
+        }
+
+        return days
+    }
+
     /// Remaining budget
     static func remainingBudget(from expenses: [Expense], includeTravelDays: Bool = false) -> Decimal {
         totalBudget - totalSpent(from: expenses, includeTravelDays: includeTravelDays)

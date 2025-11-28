@@ -23,7 +23,7 @@ struct BudgetCategoryCard: View {
     }
 
     private var canExpand: Bool {
-        (category == .perDiem || category == .transport || category == .hotel) && !includeTravelDays
+        category == .perDiem || category == .transport || category == .hotel
     }
 
     private var displayName: String {
@@ -103,8 +103,11 @@ struct BudgetCategoryCard: View {
             dailyBudget = 0
         }
 
+        // Use all trip days when includeTravelDays is ON, otherwise just work days
+        let daysToShow = includeTravelDays ? BudgetTracker.allTripDays() : BudgetTracker.allWorkDays()
+
         return VStack(spacing: 8) {
-            ForEach(BudgetTracker.allWorkDays(), id: \.self) { day in
+            ForEach(daysToShow, id: \.self) { day in
                 DailyBudgetCard(
                     day: day,
                     spent: dailySpending[Calendar.current.startOfDay(for: day)] ?? 0,
